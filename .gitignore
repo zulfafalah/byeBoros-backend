@@ -4,3 +4,4 @@ public/logs
 tmp
 *.out
 *.tree
+service_account.json
