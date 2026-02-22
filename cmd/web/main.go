@@ -29,10 +29,12 @@ func main() {
 	sheetRepo := repository.NewSheetRepository(sheetClient)
 	authUsecase := usecase.NewAuthUsecase(cfg)
 	transactionUsecase := usecase.NewTransactionUsecase(sheetRepo)
+	categoryUsecase := usecase.NewCategoryUsecase(sheetRepo)
 
 	// Controllers
 	authController := controller.NewAuthController(authUsecase)
 	transactionController := controller.NewTransactionController(transactionUsecase)
+	categoryController := controller.NewCategoryController(categoryUsecase)
 
 	// Setup Echo
 	e := echo.New()
@@ -48,7 +50,7 @@ func main() {
 	}))
 
 	// Register routes
-	apphttp.SetupRoutes(e, authController, transactionController, authUsecase)
+	apphttp.SetupRoutes(e, authController, transactionController, categoryController, authUsecase)
 
 	// Start server
 	log.Printf("🚀 Server starting on port %s", cfg.Port)

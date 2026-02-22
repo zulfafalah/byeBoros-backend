@@ -9,7 +9,7 @@ import (
 )
 
 // SetupRoutes registers all application routes
-func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionCtrl *controller.TransactionController, authUsecase *usecase.AuthUsecase) {
+func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionCtrl *controller.TransactionController, categoryCtrl *controller.CategoryController, authUsecase *usecase.AuthUsecase) {
 	// Health check
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{
@@ -33,5 +33,8 @@ func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionC
 	api.POST("/transaction/income", transactionCtrl.AddIncomeTransaction)
 	api.POST("/transaction/expense", transactionCtrl.AddExpenseTransaction)
 	api.GET("/transaction", transactionCtrl.ListTransaction)
+
+	// Category routes
+	api.GET("/category", categoryCtrl.ListCategory)
 
 }
