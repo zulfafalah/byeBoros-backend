@@ -9,3 +9,13 @@ type IncomeTransactionRequest struct {
 	Notes         *string `json:"notes"`
 	TransactionAt string  `json:"transaction_at" validate:"required"`
 }
+
+// ExpenseTransactionRequest represents the payload for adding an expense transaction
+type ExpenseTransactionRequest struct {
+	Description   string  `json:"description" validate:"required"`
+	Category      string  `json:"category" validate:"required"`
+	Amount        float64 `json:"amount" validate:"required"`
+	Notes         *string `json:"notes"`
+	TransactionAt string  `json:"transaction_at" validate:"required"`
+}
+

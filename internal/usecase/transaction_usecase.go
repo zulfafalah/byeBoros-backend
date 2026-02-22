@@ -51,3 +51,25 @@ func (u *TransactionUsecase) AddIncomeTransaction(spreadsheetID string, sheetNam
 
 	return nil
 }
+
+// AddExpenseTransaction inserts an expense transaction row into the sheet
+func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetName string, req request.ExpenseTransactionRequest) error {
+	notes := ""
+	if req.Notes != nil {
+		notes = *req.Notes
+	}
+
+	values := []interface{}{
+		req.Description,   // Column H
+		req.Category,      // Column I
+		req.Amount,        // Column J
+		notes,             // Column K
+		req.TransactionAt, // Column L
+	}
+
+	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!H:L", values); err != nil {
+		return fmt.Errorf("failed to add expense transaction: %w", err)
+	}
+
+	return nil
+}
