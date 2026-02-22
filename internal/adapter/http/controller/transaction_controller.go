@@ -113,7 +113,7 @@ func (h *TransactionController) AddExpenseTransaction(c echo.Context) error {
 	})
 }
 
-// ListTransaction returns the list of transactions from sheet "Januari" A2:E
+// ListTransaction returns the list of transactions with optional date and category filters
 func (h *TransactionController) ListTransaction(c echo.Context) error {
 	spreadsheetID, ok := c.Get("spreadsheet_id").(string)
 	if !ok || spreadsheetID == "" {
@@ -121,8 +121,17 @@ func (h *TransactionController) ListTransaction(c echo.Context) error {
 			"error": "Spreadsheet ID not found in context",
 		})
 	}
+	sheetName, ok := c.Get("sheet_name").(string)
+	if !ok || sheetName == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Sheet name not found in context",
+		})
+	}
 
-	data, err := h.transactionUsecase.GetListTransaction(spreadsheetID)
+	dateFilter := c.QueryParam("date")
+	categoryFilter := c.QueryParam("category")
+
+	data, err := h.transactionUsecase.GetListTransaction(spreadsheetID, sheetName, dateFilter, categoryFilter)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to fetch transactions: " + err.Error(),
@@ -130,7 +139,7 @@ func (h *TransactionController) ListTransaction(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message": "success",
-		"data":    data,
+		"status": "success",
+		"data":   data,
 	})
 }
