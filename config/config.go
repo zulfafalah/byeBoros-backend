@@ -13,7 +13,6 @@ type Config struct {
 	GoogleClientSecret   string
 	GoogleRedirectURL    string
 	GoogleServiceAccFile string
-	SpreadsheetID        string
 	JWTSecret            string
 	FrontendURL          string
 }
@@ -30,7 +29,6 @@ func LoadConfig() *Config {
 		GoogleClientSecret:   getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:    getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/auth/google/callback"),
 		GoogleServiceAccFile: getEnv("GOOGLE_SERVICE_ACCOUNT_FILE", "service_account.json"),
-		SpreadsheetID:        getEnv("SPREADSHEET_ID", ""),
 		JWTSecret:            getEnv("JWT_SECRET", "secret"),
 		FrontendURL:          getEnv("FRONTEND_URL", "http://localhost:3000"),
 	}

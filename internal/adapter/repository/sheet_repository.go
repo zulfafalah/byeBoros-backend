@@ -20,9 +20,9 @@ func NewSheetRepository(client *gsheet.Client) *SheetRepository {
 }
 
 // GetAllRows returns all rows from a sheet (including header)
-func (r *SheetRepository) GetAllRows(sheetName string) ([][]interface{}, error) {
+func (r *SheetRepository) GetAllRows(spreadsheetID, sheetName string) ([][]interface{}, error) {
 	resp, err := r.client.Service.Spreadsheets.Values.Get(
-		r.client.SpreadsheetID, sheetName,
+		spreadsheetID, sheetName,
 	).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all rows: %w", err)
@@ -30,9 +30,20 @@ func (r *SheetRepository) GetAllRows(sheetName string) ([][]interface{}, error) 
 	return resp.Values, nil
 }
 
+// GetRangeValues returns values from a specific range string (e.g. "Januari!A2:E")
+func (r *SheetRepository) GetRangeValues(spreadsheetID, rangeStr string) ([][]interface{}, error) {
+	resp, err := r.client.Service.Spreadsheets.Values.Get(
+		spreadsheetID, rangeStr,
+	).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get range values: %w", err)
+	}
+	return resp.Values, nil
+}
+
 // GetDataRows returns all rows excluding the header row
-func (r *SheetRepository) GetDataRows(sheetName string) ([][]interface{}, error) {
-	rows, err := r.GetAllRows(sheetName)
+func (r *SheetRepository) GetDataRows(spreadsheetID, sheetName string) ([][]interface{}, error) {
+	rows, err := r.GetAllRows(spreadsheetID, sheetName)
 	if err != nil {
 		return nil, err
 	}
@@ -43,9 +54,9 @@ func (r *SheetRepository) GetDataRows(sheetName string) ([][]interface{}, error)
 }
 
 // GetHeaders returns the first row (header) of a sheet
-func (r *SheetRepository) GetHeaders(sheetName string) ([]interface{}, error) {
+func (r *SheetRepository) GetHeaders(spreadsheetID, sheetName string) ([]interface{}, error) {
 	resp, err := r.client.Service.Spreadsheets.Values.Get(
-		r.client.SpreadsheetID, sheetName+"!1:1",
+		spreadsheetID, sheetName+"!1:1",
 	).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get headers: %w", err)
@@ -57,10 +68,10 @@ func (r *SheetRepository) GetHeaders(sheetName string) ([]interface{}, error) {
 }
 
 // GetRowByIndex returns a single row by its 1-based index
-func (r *SheetRepository) GetRowByIndex(sheetName string, rowIndex int) ([]interface{}, error) {
+func (r *SheetRepository) GetRowByIndex(spreadsheetID, sheetName string, rowIndex int) ([]interface{}, error) {
 	rangeStr := fmt.Sprintf("%s!%d:%d", sheetName, rowIndex, rowIndex)
 	resp, err := r.client.Service.Spreadsheets.Values.Get(
-		r.client.SpreadsheetID, rangeStr,
+		spreadsheetID, rangeStr,
 	).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get row %d: %w", rowIndex, err)
@@ -73,8 +84,8 @@ func (r *SheetRepository) GetRowByIndex(sheetName string, rowIndex int) ([]inter
 
 // FindRows searches for rows where the specified column matches the given value
 // colIndex is 0-based
-func (r *SheetRepository) FindRows(sheetName string, colIndex int, value string) ([][]interface{}, error) {
-	rows, err := r.GetAllRows(sheetName)
+func (r *SheetRepository) FindRows(spreadsheetID, sheetName string, colIndex int, value string) ([][]interface{}, error) {
+	rows, err := r.GetAllRows(spreadsheetID, sheetName)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +104,8 @@ func (r *SheetRepository) FindRows(sheetName string, colIndex int, value string)
 
 // FindRowIndex searches for the first row where the specified column matches the value
 // Returns the 1-based row index, or -1 if not found
-func (r *SheetRepository) FindRowIndex(sheetName string, colIndex int, value string) (int, error) {
-	rows, err := r.GetAllRows(sheetName)
+func (r *SheetRepository) FindRowIndex(spreadsheetID, sheetName string, colIndex int, value string) (int, error) {
+	rows, err := r.GetAllRows(spreadsheetID, sheetName)
 	if err != nil {
 		return -1, err
 	}
@@ -111,13 +122,13 @@ func (r *SheetRepository) FindRowIndex(sheetName string, colIndex int, value str
 }
 
 // AppendRow appends a new row at the end of the sheet
-func (r *SheetRepository) AppendRow(sheetName string, values []interface{}) error {
+func (r *SheetRepository) AppendRow(spreadsheetID, sheetName string, values []interface{}) error {
 	valueRange := &sheets.ValueRange{
 		Values: [][]interface{}{values},
 	}
 
 	_, err := r.client.Service.Spreadsheets.Values.Append(
-		r.client.SpreadsheetID, sheetName, valueRange,
+		spreadsheetID, sheetName, valueRange,
 	).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		return fmt.Errorf("failed to append row: %w", err)
@@ -126,7 +137,7 @@ func (r *SheetRepository) AppendRow(sheetName string, values []interface{}) erro
 }
 
 // UpdateRow updates a specific row by its 1-based index
-func (r *SheetRepository) UpdateRow(sheetName string, rowIndex int, values []interface{}) error {
+func (r *SheetRepository) UpdateRow(spreadsheetID, sheetName string, rowIndex int, values []interface{}) error {
 	lastCol := columnIndexToLetter(len(values) - 1)
 	rangeStr := fmt.Sprintf("%s!A%d:%s%d", sheetName, rowIndex, lastCol, rowIndex)
 
@@ -135,7 +146,7 @@ func (r *SheetRepository) UpdateRow(sheetName string, rowIndex int, values []int
 	}
 
 	_, err := r.client.Service.Spreadsheets.Values.Update(
-		r.client.SpreadsheetID, rangeStr, valueRange,
+		spreadsheetID, rangeStr, valueRange,
 	).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		return fmt.Errorf("failed to update row %d: %w", rowIndex, err)
@@ -144,7 +155,7 @@ func (r *SheetRepository) UpdateRow(sheetName string, rowIndex int, values []int
 }
 
 // DeleteRow deletes a row by its 1-based index
-func (r *SheetRepository) DeleteRow(sheetName string, sheetID int64, rowIndex int) error {
+func (r *SheetRepository) DeleteRow(spreadsheetID, sheetName string, sheetID int64, rowIndex int) error {
 	req := &sheets.BatchUpdateSpreadsheetRequest{
 		Requests: []*sheets.Request{
 			{
@@ -160,7 +171,7 @@ func (r *SheetRepository) DeleteRow(sheetName string, sheetID int64, rowIndex in
 		},
 	}
 
-	_, err := r.client.Service.Spreadsheets.BatchUpdate(r.client.SpreadsheetID, req).Do()
+	_, err := r.client.Service.Spreadsheets.BatchUpdate(spreadsheetID, req).Do()
 	if err != nil {
 		return fmt.Errorf("failed to delete row %d: %w", rowIndex, err)
 	}
@@ -169,7 +180,7 @@ func (r *SheetRepository) DeleteRow(sheetName string, sheetID int64, rowIndex in
 
 // UpdateCell updates a specific cell
 // row is 1-based, col is 0-based
-func (r *SheetRepository) UpdateCell(sheetName string, row int, col int, value interface{}) error {
+func (r *SheetRepository) UpdateCell(spreadsheetID, sheetName string, row int, col int, value interface{}) error {
 	colLetter := columnIndexToLetter(col)
 	rangeStr := fmt.Sprintf("%s!%s%d", sheetName, colLetter, row)
 
@@ -178,7 +189,7 @@ func (r *SheetRepository) UpdateCell(sheetName string, row int, col int, value i
 	}
 
 	_, err := r.client.Service.Spreadsheets.Values.Update(
-		r.client.SpreadsheetID, rangeStr, valueRange,
+		spreadsheetID, rangeStr, valueRange,
 	).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		return fmt.Errorf("failed to update cell: %w", err)
@@ -187,12 +198,12 @@ func (r *SheetRepository) UpdateCell(sheetName string, row int, col int, value i
 }
 
 // GetColumnValues returns all values in a specific column (0-based index)
-func (r *SheetRepository) GetColumnValues(sheetName string, colIndex int) ([]interface{}, error) {
+func (r *SheetRepository) GetColumnValues(spreadsheetID, sheetName string, colIndex int) ([]interface{}, error) {
 	colLetter := columnIndexToLetter(colIndex)
 	rangeStr := fmt.Sprintf("%s!%s:%s", sheetName, colLetter, colLetter)
 
 	resp, err := r.client.Service.Spreadsheets.Values.Get(
-		r.client.SpreadsheetID, rangeStr,
+		spreadsheetID, rangeStr,
 	).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get column values: %w", err)
@@ -209,8 +220,8 @@ func (r *SheetRepository) GetColumnValues(sheetName string, colIndex int) ([]int
 
 // GetRowsAsMap returns all data rows as a slice of maps,
 // where the keys are the header column names
-func (r *SheetRepository) GetRowsAsMap(sheetName string) ([]map[string]interface{}, error) {
-	rows, err := r.GetAllRows(sheetName)
+func (r *SheetRepository) GetRowsAsMap(spreadsheetID, sheetName string) ([]map[string]interface{}, error) {
+	rows, err := r.GetAllRows(spreadsheetID, sheetName)
 	if err != nil {
 		return nil, err
 	}
@@ -237,8 +248,8 @@ func (r *SheetRepository) GetRowsAsMap(sheetName string) ([]map[string]interface
 }
 
 // GetSheetID returns the sheet ID (gid) for a given sheet name
-func (r *SheetRepository) GetSheetID(sheetName string) (int64, error) {
-	spreadsheet, err := r.client.Service.Spreadsheets.Get(r.client.SpreadsheetID).Do()
+func (r *SheetRepository) GetSheetID(spreadsheetID, sheetName string) (int64, error) {
+	spreadsheet, err := r.client.Service.Spreadsheets.Get(spreadsheetID).Do()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get spreadsheet: %w", err)
 	}
@@ -262,8 +273,8 @@ func columnIndexToLetter(index int) string {
 }
 
 // CountRows returns the total number of rows (including header) in a sheet
-func (r *SheetRepository) CountRows(sheetName string) (int, error) {
-	rows, err := r.GetAllRows(sheetName)
+func (r *SheetRepository) CountRows(spreadsheetID, sheetName string) (int, error) {
+	rows, err := r.GetAllRows(spreadsheetID, sheetName)
 	if err != nil {
 		return 0, err
 	}
@@ -271,9 +282,9 @@ func (r *SheetRepository) CountRows(sheetName string) (int, error) {
 }
 
 // ClearSheet clears all data in a sheet
-func (r *SheetRepository) ClearSheet(sheetName string) error {
+func (r *SheetRepository) ClearSheet(spreadsheetID, sheetName string) error {
 	_, err := r.client.Service.Spreadsheets.Values.Clear(
-		r.client.SpreadsheetID, sheetName,
+		spreadsheetID, sheetName,
 		&sheets.ClearValuesRequest{},
 	).Do()
 	if err != nil {
@@ -283,13 +294,13 @@ func (r *SheetRepository) ClearSheet(sheetName string) error {
 }
 
 // BatchAppendRows appends multiple rows at once
-func (r *SheetRepository) BatchAppendRows(sheetName string, rows [][]interface{}) error {
+func (r *SheetRepository) BatchAppendRows(spreadsheetID, sheetName string, rows [][]interface{}) error {
 	valueRange := &sheets.ValueRange{
 		Values: rows,
 	}
 
 	_, err := r.client.Service.Spreadsheets.Values.Append(
-		r.client.SpreadsheetID, sheetName, valueRange,
+		spreadsheetID, sheetName, valueRange,
 	).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		return fmt.Errorf("failed to batch append rows: %w", err)

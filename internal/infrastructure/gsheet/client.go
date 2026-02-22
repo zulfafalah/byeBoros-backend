@@ -11,12 +11,11 @@ import (
 
 // Client wraps the Google Sheets service
 type Client struct {
-	Service       *sheets.Service
-	SpreadsheetID string
+	Service *sheets.Service
 }
 
 // NewClient creates a new Google Sheets client using a service account JSON file
-func NewClient(serviceAccountFile, spreadsheetID string) (*Client, error) {
+func NewClient(serviceAccountFile string) (*Client, error) {
 	ctx := context.Background()
 
 	srv, err := sheets.NewService(ctx,
@@ -33,7 +32,6 @@ func NewClient(serviceAccountFile, spreadsheetID string) (*Client, error) {
 	log.Println("✅ Google Sheets client initialized successfully")
 
 	return &Client{
-		Service:       srv,
-		SpreadsheetID: spreadsheetID,
+		Service: srv,
 	}, nil
 }

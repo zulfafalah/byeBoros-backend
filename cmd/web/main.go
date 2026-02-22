@@ -4,8 +4,8 @@ import (
 	"log"
 
 	"byeboros-backend/config"
+	apphttp "byeboros-backend/internal/adapter/http"
 	"byeboros-backend/internal/adapter/http/controller"
-	"byeboros-backend/internal/adapter/http/middleware"
 	"byeboros-backend/internal/adapter/repository"
 	"byeboros-backend/internal/infrastructure/gsheet"
 	"byeboros-backend/internal/usecase"
@@ -19,7 +19,7 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Initialize Google Sheets client
-	sheetClient, err := gsheet.NewClient(cfg.GoogleServiceAccFile, cfg.SpreadsheetID)
+	sheetClient, err := gsheet.NewClient(cfg.GoogleServiceAccFile)
 	if err != nil {
 		log.Printf("⚠️  Warning: Google Sheets client failed to initialize: %v", err)
 		log.Println("   The server will start, but sheet operations will not work.")
@@ -28,9 +28,11 @@ func main() {
 	// Initialize layers
 	sheetRepo := repository.NewSheetRepository(sheetClient)
 	authUsecase := usecase.NewAuthUsecase(cfg)
+	transactionUsecase := usecase.NewTransactionUsecase(sheetRepo)
 
 	// Controllers
 	authController := controller.NewAuthController(authUsecase)
+	transactionController := controller.NewTransactionController(transactionUsecase)
 
 	// Setup Echo
 	e := echo.New()
@@ -42,36 +44,13 @@ func main() {
 	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
 		AllowOrigins: []string{cfg.FrontendURL, "http://localhost:3000"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.PATCH},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-Spreadsheet-ID"},
 	}))
 
 	// Register routes
-	setupRoutes(e, authController, authUsecase, middleware.JWTMiddleware(authUsecase))
-
-	// Log initialized components
-	_ = sheetRepo // will be injected into usecases as features are added
+	apphttp.SetupRoutes(e, authController, transactionController, authUsecase)
 
 	// Start server
 	log.Printf("🚀 Server starting on port %s", cfg.Port)
 	e.Logger.Fatal(e.Start(":" + cfg.Port))
-}
-
-func setupRoutes(e *echo.Echo, authCtrl *controller.AuthController, authUsecase *usecase.AuthUsecase, jwtMiddleware echo.MiddlewareFunc) {
-	// Health check
-	e.GET("/health", func(c echo.Context) error {
-		return c.JSON(200, map[string]string{
-			"status":  "ok",
-			"message": "Byeboros Backend is running 🚀",
-		})
-	})
-
-	// Auth routes (public)
-	auth := e.Group("/auth")
-	auth.GET("/google/login", authCtrl.GoogleLogin)
-	auth.GET("/google/callback", authCtrl.GoogleCallback)
-
-	// Protected routes
-	api := e.Group("/api")
-	api.Use(jwtMiddleware)
-	api.GET("/me", authCtrl.GetMe)
 }
