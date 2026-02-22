@@ -1,8 +1,9 @@
 package response
 
 type CategoryItem struct {
-	Name   string  `json:"name"`
-	Budget float64 `json:"budget"`
+	CategoryName    string  `json:"category_name"`
+	SubCategoryName string  `json:"sub_category_name"`
+	Budget          float64 `json:"budget"`
 }
 
 type CategoryResponse struct {

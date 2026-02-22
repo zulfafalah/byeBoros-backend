@@ -39,4 +39,7 @@ func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionC
 	api.POST("/category", categoryCtrl.SaveCategory)
 	api.PUT("/category", categoryCtrl.SaveCategory)
 
+	// Analysis routes
+	// api.GET("/analysis", transactionCtrl.GetAnalysis)
+
 }

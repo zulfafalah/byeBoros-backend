@@ -1,8 +1,9 @@
 package request
 
 type CategoryItem struct {
-	Name   string  `json:"name" validate:"required"`
-	Budget float64 `json:"budget" validate:"required"`
+	CategoryName    string  `json:"category_name" validate:"required"`
+	SubCategoryName string  `json:"sub_category_name" validate:"required"`
+	Budget          float64 `json:"budget" validate:"required"`
 }
 
 type SaveCategoryRequest struct {
