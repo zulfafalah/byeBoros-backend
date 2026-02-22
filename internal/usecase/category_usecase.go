@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"byeboros-backend/internal/adapter/http/model/request"
 	"byeboros-backend/internal/adapter/http/model/response"
 	"byeboros-backend/internal/adapter/repository"
 )
@@ -58,4 +59,34 @@ func (u *CategoryUsecase) GetCategory(spreadsheetID string, sheetName string) (*
 	}
 
 	return res, nil
+}
+
+func (u *CategoryUsecase) SaveCategory(spreadsheetID string, sheetName string, req *request.SaveCategoryRequest) error {
+	err := u.sheetRepo.UpdateCell(spreadsheetID, sheetName, 2, 4, req.MonthlyBudget)
+	if err != nil {
+		return err
+	}
+
+	err = u.sheetRepo.UpdateCell(spreadsheetID, sheetName, 3, 4, req.DailyBudget)
+	if err != nil {
+		return err
+	}
+
+	err = u.sheetRepo.ClearRange(spreadsheetID, sheetName+"!A2:B")
+	if err != nil {
+		return fmt.Errorf("failed to clear existing categories: %w", err)
+	}
+
+	if len(req.Categories) > 0 {
+		var values [][]interface{}
+		for _, cat := range req.Categories {
+			values = append(values, []interface{}{cat.Name, cat.Budget})
+		}
+		err = u.sheetRepo.UpdateRange(spreadsheetID, sheetName+"!A2:B", values)
+		if err != nil {
+			return fmt.Errorf("failed to save new categories: %w", err)
+		}
+	}
+
+	return nil
 }

@@ -293,6 +293,33 @@ func (r *SheetRepository) ClearSheet(spreadsheetID, sheetName string) error {
 	return nil
 }
 
+// ClearRange clears all data in a specific range
+func (r *SheetRepository) ClearRange(spreadsheetID, rangeStr string) error {
+	_, err := r.client.Service.Spreadsheets.Values.Clear(
+		spreadsheetID, rangeStr,
+		&sheets.ClearValuesRequest{},
+	).Do()
+	if err != nil {
+		return fmt.Errorf("failed to clear range: %w", err)
+	}
+	return nil
+}
+
+// UpdateRange updates values in a specific range
+func (r *SheetRepository) UpdateRange(spreadsheetID, rangeStr string, values [][]interface{}) error {
+	valueRange := &sheets.ValueRange{
+		Values: values,
+	}
+
+	_, err := r.client.Service.Spreadsheets.Values.Update(
+		spreadsheetID, rangeStr, valueRange,
+	).ValueInputOption("USER_ENTERED").Do()
+	if err != nil {
+		return fmt.Errorf("failed to update range: %w", err)
+	}
+	return nil
+}
+
 // BatchAppendRows appends multiple rows at once
 func (r *SheetRepository) BatchAppendRows(spreadsheetID, sheetName string, rows [][]interface{}) error {
 	valueRange := &sheets.ValueRange{
