@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env
+bin/
+tmp/
+service_account.json
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

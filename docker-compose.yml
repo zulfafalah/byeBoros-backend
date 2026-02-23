@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  byeboros-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: byeboros-backend-app
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./service_account.json:/app/service_account.json:ro
+    restart: unless-stopped
