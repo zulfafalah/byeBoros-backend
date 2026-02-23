@@ -20,6 +20,7 @@ COPY . .
 RUN make build
 
 # Final stage
+# =============================
 FROM alpine:latest
 
 # Install CA certificates and timezone data (required for making HTTPS requests and handling time correctly)
@@ -30,11 +31,5 @@ WORKDIR /app
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /app/bin/byeboros-backend .
 
-# Copy environment example to root as fallback
-COPY .env.example .env
-
-# Expose port (default 8080)
 EXPOSE 8080
-
-# Command to run the executable
 CMD ["./byeboros-backend"]
