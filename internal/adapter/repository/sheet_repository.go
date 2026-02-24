@@ -41,6 +41,15 @@ func (r *SheetRepository) GetRangeValues(spreadsheetID, rangeStr string) ([][]in
 	return resp.Values, nil
 }
 
+// BatchGetValues returns values from multiple range strings
+func (r *SheetRepository) BatchGetValues(spreadsheetID string, ranges []string) ([]*sheets.ValueRange, error) {
+	resp, err := r.client.Service.Spreadsheets.Values.BatchGet(spreadsheetID).Ranges(ranges...).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get values: %w", err)
+	}
+	return resp.ValueRanges, nil
+}
+
 // GetDataRows returns all rows excluding the header row
 func (r *SheetRepository) GetDataRows(spreadsheetID, sheetName string) ([][]interface{}, error) {
 	rows, err := r.GetAllRows(spreadsheetID, sheetName)

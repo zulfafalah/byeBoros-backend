@@ -143,3 +143,29 @@ func (h *TransactionController) ListTransaction(c echo.Context) error {
 		"data":   data,
 	})
 }
+
+// GetAnalysis fetches the financial analysis data
+func (h *TransactionController) GetAnalysis(c echo.Context) error {
+	spreadsheetID, ok := c.Get("spreadsheet_id").(string)
+	if !ok || spreadsheetID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Spreadsheet ID not found in context",
+		})
+	}
+
+	sheetName, ok := c.Get("sheet_name").(string)
+	if !ok || sheetName == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Sheet name not found in context",
+		})
+	}
+
+	data, err := h.transactionUsecase.GetAnalysis(spreadsheetID, sheetName)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to fetch analysis: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, data)
+}
