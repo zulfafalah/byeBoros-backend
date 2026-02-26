@@ -263,7 +263,7 @@ func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetNa
 	values := []interface{}{
 		req.Description,   // Column A
 		req.Category,      // Column B
-		"",                // Column C (Priority - not applicable for expense)
+		req.Priority,      // Column C (Priority)
 		req.Amount,        // Column D
 		notes,             // Column E
 		req.TransactionAt, // Column F

@@ -13,6 +13,7 @@ type IncomeTransactionRequest struct {
 type ExpenseTransactionRequest struct {
 	Description   string  `json:"description" validate:"required"`
 	Category      string  `json:"category" validate:"required"`
+	Priority      string  `json:"priority"`
 	Amount        float64 `json:"amount" validate:"required"`
 	Notes         *string `json:"notes"`
 	TransactionAt string  `json:"transaction_at" validate:"required"`
