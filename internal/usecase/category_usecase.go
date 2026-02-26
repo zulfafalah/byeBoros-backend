@@ -68,6 +68,29 @@ func (u *CategoryUsecase) GetCategory(spreadsheetID string, sheetName string) (*
 	return res, nil
 }
 
+func (u *CategoryUsecase) GetIncomeCategory(spreadsheetID string, sheetName string) ([]string, error) {
+	incomeRange := sheetName + "!H4:H"
+
+	rows, err := u.sheetRepo.GetRangeValues(spreadsheetID, incomeRange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get income categories from spreadsheet: %w", err)
+	}
+
+	categories := make([]string, 0)
+	for _, row := range rows {
+		if len(row) == 0 {
+			continue
+		}
+		name := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
+		if name == "" {
+			continue
+		}
+		categories = append(categories, name)
+	}
+
+	return categories, nil
+}
+
 func (u *CategoryUsecase) SaveCategory(spreadsheetID string, sheetName string, req *request.SaveCategoryRequest) error {
 	err := u.sheetRepo.UpdateCell(spreadsheetID, sheetName, 4, 5, req.DailyBudget)
 	if err != nil {
