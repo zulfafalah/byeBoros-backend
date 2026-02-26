@@ -225,30 +225,7 @@ func getGroupLabel(dateStr string) string {
 }
 
 // AddIncomeTransaction inserts an income transaction row into the "Income" sheet
-func (u *TransactionUsecase) AddIncomeTransaction(spreadsheetID string, sheetName string, req request.IncomeTransactionRequest) error {
-	notes := ""
-	if req.Notes != nil {
-		notes = *req.Notes
-	}
-
-	values := []interface{}{
-		req.Description,   // Column A
-		req.Category,      // Column B
-		req.Priority,      // Column C
-		req.Amount,        // Column D
-		notes,             // Column E
-		req.TransactionAt, // Column F
-	}
-
-	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!A:F", values); err != nil {
-		return fmt.Errorf("failed to add income transaction: %w", err)
-	}
-
-	return nil
-}
-
-// AddExpenseTransaction inserts an expense transaction row into the sheet
-func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetName string, req request.ExpenseTransactionRequest) error {
+func (u *TransactionUsecase) AddIncomeTransaction(spreadsheetID string, sheetName string, req request.IncomeTransactionRequest, createdBy string) error {
 	notes := ""
 	if req.Notes != nil {
 		notes = *req.Notes
@@ -260,9 +237,34 @@ func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetNa
 		req.Amount,        // Column J
 		notes,             // Column K
 		req.TransactionAt, // Column L
+		createdBy,         // Column M
 	}
 
-	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!H:L", values); err != nil {
+	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!H:M", values); err != nil {
+		return fmt.Errorf("failed to add income transaction: %w", err)
+	}
+
+	return nil
+}
+
+// AddExpenseTransaction inserts an expense transaction row into the sheet
+func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetName string, req request.ExpenseTransactionRequest, createdBy string) error {
+	notes := ""
+	if req.Notes != nil {
+		notes = *req.Notes
+	}
+
+	values := []interface{}{
+		req.Description,   // Column A
+		req.Category,      // Column B
+		"",                // Column C (Priority - not applicable for expense)
+		req.Amount,        // Column D
+		notes,             // Column E
+		req.TransactionAt, // Column F
+		createdBy,         // Column G
+	}
+
+	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!A:G", values); err != nil {
 		return fmt.Errorf("failed to add expense transaction: %w", err)
 	}
 
@@ -272,12 +274,12 @@ func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetNa
 // GetAnalysis fetches the financial analysis data
 func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string) (*response.AnalysisResponse, error) {
 	ranges := []string{
-		sheetName + "!AA2",   // 0: total expense
-		sheetName + "!R2:S",  // 1: exp categories
-		sheetName + "!A2:G",  // 2: exp priorities
-		sheetName + "!AD2",   // 3: total income
-		sheetName + "!I2:O",  // 4: inc categories/transactions
-		"Master Data!H4:H",   // 5: master income categories
+		sheetName + "!AA2",  // 0: total expense
+		sheetName + "!R2:S", // 1: exp categories
+		sheetName + "!A2:G", // 2: exp priorities
+		sheetName + "!AD2",  // 3: total income
+		sheetName + "!I2:O", // 4: inc categories/transactions
+		"Master Data!H4:H",  // 5: master income categories
 	}
 
 	valueRanges, err := u.sheetRepo.BatchGetValues(spreadsheetID, ranges)

@@ -55,7 +55,10 @@ func (h *TransactionController) AddIncomeTransaction(c echo.Context) error {
 		})
 	}
 
-	if err := h.transactionUsecase.AddIncomeTransaction(spreadsheetID, sheetName, req); err != nil {
+	// Extract email from JWT token (set by JWTMiddleware)
+	createdBy, _ := c.Get("email").(string)
+
+	if err := h.transactionUsecase.AddIncomeTransaction(spreadsheetID, sheetName, req, createdBy); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to add income transaction: " + err.Error(),
 		})
@@ -102,7 +105,10 @@ func (h *TransactionController) AddExpenseTransaction(c echo.Context) error {
 		})
 	}
 
-	if err := h.transactionUsecase.AddExpenseTransaction(spreadsheetID, sheetName, req); err != nil {
+	// Extract email from JWT token (set by JWTMiddleware)
+	createdBy, _ := c.Get("email").(string)
+
+	if err := h.transactionUsecase.AddExpenseTransaction(spreadsheetID, sheetName, req, createdBy); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to add expense transaction: " + err.Error(),
 		})

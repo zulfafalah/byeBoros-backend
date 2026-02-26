@@ -25,7 +25,7 @@ func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionC
 
 	// Protected routes
 	api := e.Group("/api")
-	// api.Use(middleware.JWTMiddleware(authUsecase))
+	api.Use(middleware.JWTMiddleware(authUsecase))
 	api.Use(middleware.SpreadsheetIDMiddleware())
 	api.GET("/me", authCtrl.GetMe)
 
