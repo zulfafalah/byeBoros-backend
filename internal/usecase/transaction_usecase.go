@@ -281,10 +281,10 @@ func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetNa
 func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string) (*response.AnalysisResponse, error) {
 	ranges := []string{
 		sheetName + "!AA2",  // 0: total expense
-		sheetName + "!R2:S", // 1: exp categories
+		sheetName + "!P2:T", // 1: exp categories (Nama Kategori, Sub kategori, Budget, Alokasi, Sisa Budget)
 		sheetName + "!A2:G", // 2: exp priorities
 		sheetName + "!AD2",  // 3: total income
-		sheetName + "!I2:O", // 4: inc categories/transactions
+		sheetName + "!I2:N", // 4: inc categories/transactions
 		"Master Data!H4:H",  // 5: master income categories
 	}
 
@@ -313,29 +313,32 @@ func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string)
 	return resp, nil
 }
 
-func (u *TransactionUsecase) getExpenseAnalysis(aa2, r2s, a2g [][]interface{}) response.AnalysisExpenseData {
+func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}) response.AnalysisExpenseData {
 	var totalSpent float64
 	if len(aa2) > 0 && len(aa2[0]) > 0 {
 		totalSpent = parseAmount(aa2[0][0])
 	}
 
+	// List each subcategory row with category_name and sub_category_name from P2:T
+	// P=Nama Kategori(0), Q=Sub kategori(1), R=Budget(2), S=Alokasi(3), T=Sisa Budget(4)
 	expCats := []response.AnalysisCategory{}
 	var expCatTotal float64
-	for _, row := range r2s {
-		if len(row) < 2 {
+	for _, row := range p2t {
+		if len(row) < 4 {
 			continue
 		}
-		name := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
-		if name == "" || strings.EqualFold(name, "Category") || strings.EqualFold(name, "Total") {
-			// ignore headers if grabbed
+		catName := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
+		subCatName := strings.TrimSpace(fmt.Sprintf("%v", row[1]))
+		if catName == "" || strings.EqualFold(catName, "Nama Kategori") || strings.EqualFold(catName, "Category") {
 			continue
 		}
-		amtF := parseAmount(row[1])
+		alokasi := parseAmount(row[3]) // Alokasi column
 		expCats = append(expCats, response.AnalysisCategory{
-			Name:   name,
-			Amount: amtF,
+			CategoryName:    catName,
+			SubCategoryName: subCatName,
+			Amount:          alokasi,
 		})
-		expCatTotal += amtF
+		expCatTotal += alokasi
 	}
 
 	var topExpCat response.AnalysisTopCategory
@@ -347,7 +350,7 @@ func (u *TransactionUsecase) getExpenseAnalysis(aa2, r2s, a2g [][]interface{}) r
 		if c.Amount >= maxExp && c.Amount > 0 {
 			maxExp = c.Amount
 			topExpCat = response.AnalysisTopCategory{
-				Name:         c.Name,
+				Name:         c.SubCategoryName,
 				Total:        c.Amount,
 				TotalDisplay: strings.Replace(formatAmount(c.Amount, false), "-", "", 1),
 			}
@@ -437,15 +440,15 @@ func (u *TransactionUsecase) getIncomeAnalysis(ad2, incCatsData, masterIncData [
 	for i, row := range incCatsData {
 		if i == 0 {
 			headerVal := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
-			if strings.EqualFold(headerVal, "category") {
+			if strings.EqualFold(headerVal, "category") || strings.EqualFold(headerVal, "nama pemasukan") {
 				continue
 			}
 		}
-		if len(row) < 2 {
+		if len(row) < 3 {
 			continue
 		}
-		cat := strings.TrimSpace(fmt.Sprintf("%v", row[0])) // I is 0
-		amtF := parseAmount(row[1])                         // J is 1
+		cat := strings.TrimSpace(fmt.Sprintf("%v", row[1])) // J is 1 (Jenis Pemasukan)
+		amtF := parseAmount(row[2])                         // K is 2 (Jumlah)
 		if cat != "" {
 			incRowMap[cat] += amtF
 		}
@@ -483,6 +486,12 @@ func (u *TransactionUsecase) getIncomeAnalysis(ad2, incCatsData, masterIncData [
 	for _, c := range incCats {
 		incCatTotal += c.Amount
 	}
+
+	// Fallback: if AD2 returned 0, use calculated total from income data
+	if totalIncome == 0 && incCatTotal > 0 {
+		totalIncome = incCatTotal
+	}
+
 	var topIncCat response.AnalysisTopCategory
 	var maxInc float64
 	for i, c := range incCats {

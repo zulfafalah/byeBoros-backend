@@ -44,9 +44,11 @@ type AnalysisChart struct {
 }
 
 type AnalysisCategory struct {
-	Name    string  `json:"name"`
-	Amount  float64 `json:"amount"`
-	Percent int     `json:"percent"`
+	Name            string  `json:"name,omitempty"`
+	CategoryName    string  `json:"category_name,omitempty"`
+	SubCategoryName string  `json:"sub_category_name,omitempty"`
+	Amount          float64 `json:"amount"`
+	Percent         int     `json:"percent"`
 }
 
 type AnalysisTopCategory struct {
