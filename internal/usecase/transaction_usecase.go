@@ -135,10 +135,22 @@ func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName 
 
 	finalGroups := []response.TransactionGroupResponse{}
 	for _, dateStr := range order {
+		var totalExpense, totalIncome float64
+		for _, item := range groupsMap[dateStr] {
+			if item.Type == "expense" {
+				// Expenses are stored as negative amounts, so we use their absolute value for the total
+				totalExpense += -item.Amount
+			} else if item.Type == "income" {
+				totalIncome += item.Amount
+			}
+		}
+
 		finalGroups = append(finalGroups, response.TransactionGroupResponse{
-			GroupLabel: getGroupLabel(dateStr),
-			GroupDate:  dateStr,
-			Items:      groupsMap[dateStr],
+			GroupLabel:   getGroupLabel(dateStr),
+			GroupDate:    dateStr,
+			TotalExpense: totalExpense,
+			TotalIncome:  totalIncome,
+			Items:        groupsMap[dateStr],
 		})
 	}
 

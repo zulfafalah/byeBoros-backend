@@ -5,9 +5,11 @@ type TransactionResponse struct {
 }
 
 type TransactionGroupResponse struct {
-	GroupLabel string                    `json:"group_label"`
-	GroupDate  string                    `json:"group_date"`
-	Items      []TransactionItemResponse `json:"items"`
+	GroupLabel   string                    `json:"group_label"`
+	GroupDate    string                    `json:"group_date"`
+	TotalExpense float64                   `json:"total_expense"`
+	TotalIncome  float64                   `json:"total_income"`
+	Items        []TransactionItemResponse `json:"items"`
 }
 
 type TransactionItemResponse struct {
