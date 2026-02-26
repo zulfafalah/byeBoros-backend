@@ -22,10 +22,10 @@ func NewTransactionUsecase(sheetRepo *repository.SheetRepository) *TransactionUs
 	return &TransactionUsecase{sheetRepo: sheetRepo}
 }
 
-// GetListTransaction fetches transaction data from sheet A2:F (Expense) & H2:L (Income) and formats it
+// GetListTransaction fetches transaction data from sheet A2:G (Expense) & I2:N (Income) and formats it
 func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName string, dateFilter string, categoryFilter string) (*response.TransactionResponse, error) {
-	expenseRange := sheetName + "!A2:F"
-	incomeRange := sheetName + "!H2:L"
+	expenseRange := sheetName + "!A2:G"
+	incomeRange := sheetName + "!I2:N"
 
 	expenseRows, err := u.sheetRepo.GetRangeValues(spreadsheetID, expenseRange)
 	if err != nil {
@@ -35,6 +35,12 @@ func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName 
 	incomeRows, err := u.sheetRepo.GetRangeValues(spreadsheetID, incomeRange)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get income transactions: %w", err)
+	}
+
+	// DEBUG: Log raw income data
+	fmt.Printf("DEBUG incomeRows count: %d\n", len(incomeRows))
+	for i, row := range incomeRows {
+		fmt.Printf("DEBUG incomeRow[%d] len=%d data=%v\n", i, len(row), row)
 	}
 
 	type rawItem struct {
@@ -232,15 +238,15 @@ func (u *TransactionUsecase) AddIncomeTransaction(spreadsheetID string, sheetNam
 	}
 
 	values := []interface{}{
-		req.Description,   // Column H
-		req.Category,      // Column I
-		req.Amount,        // Column J
-		notes,             // Column K
-		req.TransactionAt, // Column L
-		createdBy,         // Column M
+		req.Description,   // Column I
+		req.Category,      // Column J
+		req.Amount,        // Column K
+		notes,             // Column L
+		req.TransactionAt, // Column M
+		createdBy,         // Column N
 	}
 
-	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!H:M", values); err != nil {
+	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!I:N", values); err != nil {
 		return fmt.Errorf("failed to add income transaction: %w", err)
 	}
 

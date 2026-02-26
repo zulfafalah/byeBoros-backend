@@ -43,9 +43,9 @@ func (h *TransactionController) AddIncomeTransaction(c echo.Context) error {
 	}
 
 	// Basic validation
-	if req.Description == "" || req.Category == "" || req.Priority == "" || req.TransactionAt == "" {
+	if req.Description == "" || req.Category == "" || req.TransactionAt == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "description, category, priority, and transaction_at are required",
+			"error": "description, category, and transaction_at are required",
 		})
 	}
 

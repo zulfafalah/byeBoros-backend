@@ -4,7 +4,6 @@ package request
 type IncomeTransactionRequest struct {
 	Description   string  `json:"description" validate:"required"`
 	Category      string  `json:"category" validate:"required"`
-	Priority      string  `json:"priority" validate:"required"`
 	Amount        float64 `json:"amount" validate:"required"`
 	Notes         *string `json:"notes"`
 	TransactionAt string  `json:"transaction_at" validate:"required"`
@@ -18,4 +17,3 @@ type ExpenseTransactionRequest struct {
 	Notes         *string `json:"notes"`
 	TransactionAt string  `json:"transaction_at" validate:"required"`
 }
-
