@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -15,6 +16,7 @@ type Config struct {
 	GoogleServiceAccFile string
 	JWTSecret            string
 	FrontendURL          string
+	AllowedOrigins       []string
 }
 
 func LoadConfig() *Config {
@@ -31,6 +33,7 @@ func LoadConfig() *Config {
 		GoogleServiceAccFile: getEnv("GOOGLE_SERVICE_ACCOUNT_FILE", "service_account.json"),
 		JWTSecret:            getEnv("JWT_SECRET", "secret"),
 		FrontendURL:          getEnv("FRONTEND_URL", "http://localhost:3000"),
+		AllowedOrigins:       strings.Split(getEnv("ALLOWED_ORIGINS", "http://localhost:3000"), ","),
 	}
 }
 

@@ -25,7 +25,7 @@ func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionC
 
 	// Protected routes
 	api := e.Group("/api")
-	// api.Use(middleware.JWTMiddleware(authUsecase))
+	api.Use(middleware.JWTMiddleware(authUsecase))
 	api.Use(middleware.SpreadsheetIDMiddleware())
 	api.GET("/me", authCtrl.GetMe)
 
@@ -39,7 +39,9 @@ func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionC
 	api.POST("/category", categoryCtrl.SaveCategory)
 	api.PUT("/category", categoryCtrl.SaveCategory)
 
+	api.GET("/category/income", categoryCtrl.ListIncomeCategory)
+
 	// Analysis routes
-	// api.GET("/analysis", transactionCtrl.GetAnalysis)
+	api.GET("/analysis", transactionCtrl.GetAnalysis)
 
 }

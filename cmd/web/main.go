@@ -44,9 +44,9 @@ func main() {
 	e.Use(echomiddleware.Logger())
 	e.Use(echomiddleware.Recover())
 	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
-		AllowOrigins: []string{cfg.FrontendURL, "http://localhost:3000"},
+		AllowOrigins: cfg.AllowedOrigins,
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.PATCH},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-Spreadsheet-ID"},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-Spreadsheet-ID", "X-Sheet-Name"},
 	}))
 
 	// Register routes

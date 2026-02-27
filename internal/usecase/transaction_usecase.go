@@ -22,10 +22,10 @@ func NewTransactionUsecase(sheetRepo *repository.SheetRepository) *TransactionUs
 	return &TransactionUsecase{sheetRepo: sheetRepo}
 }
 
-// GetListTransaction fetches transaction data from sheet A2:F (Expense) & H2:L (Income) and formats it
+// GetListTransaction fetches transaction data from sheet A2:G (Expense) & I2:N (Income) and formats it
 func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName string, dateFilter string, categoryFilter string) (*response.TransactionResponse, error) {
-	expenseRange := sheetName + "!A2:F"
-	incomeRange := sheetName + "!H2:L"
+	expenseRange := sheetName + "!A2:G"
+	incomeRange := sheetName + "!I2:N"
 
 	expenseRows, err := u.sheetRepo.GetRangeValues(spreadsheetID, expenseRange)
 	if err != nil {
@@ -35,6 +35,12 @@ func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName 
 	incomeRows, err := u.sheetRepo.GetRangeValues(spreadsheetID, incomeRange)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get income transactions: %w", err)
+	}
+
+	// DEBUG: Log raw income data
+	fmt.Printf("DEBUG incomeRows count: %d\n", len(incomeRows))
+	for i, row := range incomeRows {
+		fmt.Printf("DEBUG incomeRow[%d] len=%d data=%v\n", i, len(row), row)
 	}
 
 	type rawItem struct {
@@ -129,10 +135,22 @@ func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName 
 
 	finalGroups := []response.TransactionGroupResponse{}
 	for _, dateStr := range order {
+		var totalExpense, totalIncome float64
+		for _, item := range groupsMap[dateStr] {
+			if item.Type == "expense" {
+				// Expenses are stored as negative amounts, so we use their absolute value for the total
+				totalExpense += -item.Amount
+			} else if item.Type == "income" {
+				totalIncome += item.Amount
+			}
+		}
+
 		finalGroups = append(finalGroups, response.TransactionGroupResponse{
-			GroupLabel: getGroupLabel(dateStr),
-			GroupDate:  dateStr,
-			Items:      groupsMap[dateStr],
+			GroupLabel:   getGroupLabel(dateStr),
+			GroupDate:    dateStr,
+			TotalExpense: totalExpense,
+			TotalIncome:  totalIncome,
+			Items:        groupsMap[dateStr],
 		})
 	}
 
@@ -225,7 +243,30 @@ func getGroupLabel(dateStr string) string {
 }
 
 // AddIncomeTransaction inserts an income transaction row into the "Income" sheet
-func (u *TransactionUsecase) AddIncomeTransaction(spreadsheetID string, sheetName string, req request.IncomeTransactionRequest) error {
+func (u *TransactionUsecase) AddIncomeTransaction(spreadsheetID string, sheetName string, req request.IncomeTransactionRequest, createdBy string) error {
+	notes := ""
+	if req.Notes != nil {
+		notes = *req.Notes
+	}
+
+	values := []interface{}{
+		req.Description,   // Column I
+		req.Category,      // Column J
+		req.Amount,        // Column K
+		notes,             // Column L
+		req.TransactionAt, // Column M
+		createdBy,         // Column N
+	}
+
+	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!I:N", values); err != nil {
+		return fmt.Errorf("failed to add income transaction: %w", err)
+	}
+
+	return nil
+}
+
+// AddExpenseTransaction inserts an expense transaction row into the sheet
+func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetName string, req request.ExpenseTransactionRequest, createdBy string) error {
 	notes := ""
 	if req.Notes != nil {
 		notes = *req.Notes
@@ -234,37 +275,275 @@ func (u *TransactionUsecase) AddIncomeTransaction(spreadsheetID string, sheetNam
 	values := []interface{}{
 		req.Description,   // Column A
 		req.Category,      // Column B
-		req.Priority,      // Column C
+		req.Priority,      // Column C (Priority)
 		req.Amount,        // Column D
 		notes,             // Column E
 		req.TransactionAt, // Column F
+		createdBy,         // Column G
 	}
 
-	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!A:F", values); err != nil {
-		return fmt.Errorf("failed to add income transaction: %w", err)
+	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!A:G", values); err != nil {
+		return fmt.Errorf("failed to add expense transaction: %w", err)
 	}
 
 	return nil
 }
 
-// AddExpenseTransaction inserts an expense transaction row into the sheet
-func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetName string, req request.ExpenseTransactionRequest) error {
-	notes := ""
-	if req.Notes != nil {
-		notes = *req.Notes
+// GetAnalysis fetches the financial analysis data
+func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string) (*response.AnalysisResponse, error) {
+	ranges := []string{
+		sheetName + "!AA2",  // 0: total expense
+		sheetName + "!P2:T", // 1: exp categories (Nama Kategori, Sub kategori, Budget, Alokasi, Sisa Budget)
+		sheetName + "!A2:G", // 2: exp priorities
+		sheetName + "!AD2",  // 3: total income
+		sheetName + "!I2:N", // 4: inc categories/transactions
+		"Master Data!H4:H",  // 5: master income categories
 	}
 
-	values := []interface{}{
-		req.Description,   // Column H
-		req.Category,      // Column I
-		req.Amount,        // Column J
-		notes,             // Column K
-		req.TransactionAt, // Column L
+	valueRanges, err := u.sheetRepo.BatchGetValues(spreadsheetID, ranges)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch analysis data: %w", err)
 	}
 
-	if err := u.sheetRepo.AppendRow(spreadsheetID, sheetName+"!H:L", values); err != nil {
-		return fmt.Errorf("failed to add expense transaction: %w", err)
+	getVal := func(idx int) [][]interface{} {
+		if len(valueRanges) > idx && valueRanges[idx] != nil && valueRanges[idx].Values != nil {
+			return valueRanges[idx].Values
+		}
+		return [][]interface{}{}
 	}
 
-	return nil
+	expenseData := u.getExpenseAnalysis(getVal(0), getVal(1), getVal(2))
+	incomeData := u.getIncomeAnalysis(getVal(3), getVal(4), getVal(5))
+
+	resp := &response.AnalysisResponse{
+		Status: "success",
+		Data: response.AnalysisData{
+			Expense: expenseData,
+			Income:  incomeData,
+		},
+	}
+	return resp, nil
+}
+
+func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}) response.AnalysisExpenseData {
+	var totalSpent float64
+	if len(aa2) > 0 && len(aa2[0]) > 0 {
+		totalSpent = parseAmount(aa2[0][0])
+	}
+
+	// List each subcategory row with category_name and sub_category_name from P2:T
+	// P=Nama Kategori(0), Q=Sub kategori(1), R=Budget(2), S=Alokasi(3), T=Sisa Budget(4)
+	expCats := []response.AnalysisCategory{}
+	var expCatTotal float64
+	for _, row := range p2t {
+		if len(row) < 4 {
+			continue
+		}
+		catName := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
+		subCatName := strings.TrimSpace(fmt.Sprintf("%v", row[1]))
+		if catName == "" || strings.EqualFold(catName, "Nama Kategori") || strings.EqualFold(catName, "Category") {
+			continue
+		}
+		alokasi := parseAmount(row[3]) // Alokasi column
+		expCats = append(expCats, response.AnalysisCategory{
+			CategoryName:    catName,
+			SubCategoryName: subCatName,
+			Amount:          alokasi,
+		})
+		expCatTotal += alokasi
+	}
+
+	var topExpCat response.AnalysisTopCategory
+	var maxExp float64
+	for i, c := range expCats {
+		if expCatTotal > 0 {
+			expCats[i].Percent = int((c.Amount / expCatTotal) * 100)
+		}
+		if c.Amount >= maxExp && c.Amount > 0 {
+			maxExp = c.Amount
+			topExpCat = response.AnalysisTopCategory{
+				Name:         c.SubCategoryName,
+				Total:        c.Amount,
+				TotalDisplay: strings.Replace(formatAmount(c.Amount, false), "-", "", 1),
+			}
+		}
+	}
+	if topExpCat.Name == "" {
+		topExpCat = response.AnalysisTopCategory{Name: "-", TotalDisplay: "Rp 0"}
+	}
+
+	priorityMap := make(map[string]float64)
+	for i, row := range a2g {
+		if i == 0 { // Skip header
+			headerVal := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
+			if strings.EqualFold(headerVal, "transaction_name") || strings.EqualFold(headerVal, "description") {
+				continue
+			}
+		}
+		if len(row) < 4 {
+			continue
+		}
+		priStr := strings.TrimSpace(fmt.Sprintf("%v", row[2])) // C is index 2
+		amtF := parseAmount(row[3])                            // D is index 3
+		if priStr != "" {
+			priorityMap[priStr] += amtF
+		}
+	}
+
+	var priDist []response.AnalysisPriorityDistribution
+	for pri, amt := range priorityMap {
+		lvl := "other"
+		lbl := pri
+		if strings.EqualFold(pri, "tinggi") {
+			lvl = "high"
+			lbl = "High Priority"
+		} else if strings.EqualFold(pri, "sedang") {
+			lvl = "medium"
+			lbl = "Medium Priority"
+		} else if strings.EqualFold(pri, "rendah") {
+			lvl = "low"
+			lbl = "Low Priority"
+		}
+		priDist = append(priDist, response.AnalysisPriorityDistribution{
+			Level:         lvl,
+			Label:         lbl,
+			Amount:        amt,
+			AmountDisplay: strings.Replace(formatAmount(amt, false), "-", "", 1),
+		})
+	}
+	sort.SliceStable(priDist, func(i, j int) bool {
+		order := map[string]int{"high": 1, "medium": 2, "low": 3, "other": 4}
+		return order[priDist[i].Level] < order[priDist[j].Level]
+	})
+
+	daysDivider := float64(time.Now().Day())
+	if daysDivider == 0 {
+		daysDivider = 1
+	}
+	dailyAvgExp := totalSpent / daysDivider
+
+	return response.AnalysisExpenseData{
+		Period:      "this_month",
+		PeriodLabel: "This Month",
+		Summary: response.AnalysisExpenseSummary{
+			TotalSpent:        totalSpent,
+			TotalSpentDisplay: strings.Replace(formatAmount(totalSpent, false), "-", "", 1),
+		},
+		Chart: response.AnalysisChart{
+			Categories: expCats,
+		},
+		TopCategory: topExpCat,
+		DailyAverage: response.AnalysisDailyAverage{
+			Label:         "Average",
+			Amount:        dailyAvgExp,
+			AmountDisplay: strings.Replace(formatAmount(dailyAvgExp, false), "-", "", 1),
+		},
+		PriorityDistribution: priDist,
+	}
+}
+
+func (u *TransactionUsecase) getIncomeAnalysis(ad2, incCatsData, masterIncData [][]interface{}) response.AnalysisIncomeData {
+	var totalIncome float64
+	if len(ad2) > 0 && len(ad2[0]) > 0 {
+		totalIncome = parseAmount(ad2[0][0])
+	}
+
+	incRowMap := make(map[string]float64)
+	for i, row := range incCatsData {
+		if i == 0 {
+			headerVal := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
+			if strings.EqualFold(headerVal, "category") || strings.EqualFold(headerVal, "nama pemasukan") {
+				continue
+			}
+		}
+		if len(row) < 3 {
+			continue
+		}
+		cat := strings.TrimSpace(fmt.Sprintf("%v", row[1])) // J is 1 (Jenis Pemasukan)
+		amtF := parseAmount(row[2])                         // K is 2 (Jumlah)
+		if cat != "" {
+			incRowMap[cat] += amtF
+		}
+	}
+
+	masterIncSet := make(map[string]bool)
+	incCats := []response.AnalysisCategory{}
+
+	for _, row := range masterIncData {
+		if len(row) == 0 {
+			continue
+		}
+		name := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
+		if name == "" || strings.EqualFold(name, "Kategori Pemasukan") {
+			continue
+		}
+		amtF := incRowMap[name]
+		incCats = append(incCats, response.AnalysisCategory{
+			Name:   name,
+			Amount: amtF,
+		})
+		masterIncSet[name] = true
+	}
+
+	for cat, amt := range incRowMap {
+		if !masterIncSet[cat] {
+			incCats = append(incCats, response.AnalysisCategory{
+				Name:   cat,
+				Amount: amt,
+			})
+		}
+	}
+
+	var incCatTotal float64
+	for _, c := range incCats {
+		incCatTotal += c.Amount
+	}
+
+	// Fallback: if AD2 returned 0, use calculated total from income data
+	if totalIncome == 0 && incCatTotal > 0 {
+		totalIncome = incCatTotal
+	}
+
+	var topIncCat response.AnalysisTopCategory
+	var maxInc float64
+	for i, c := range incCats {
+		if incCatTotal > 0 {
+			incCats[i].Percent = int((c.Amount / incCatTotal) * 100)
+		}
+		if c.Amount >= maxInc && c.Amount > 0 {
+			maxInc = c.Amount
+			topIncCat = response.AnalysisTopCategory{
+				Name:         c.Name,
+				Total:        c.Amount,
+				TotalDisplay: strings.Replace(formatAmount(c.Amount, true), "+", "", 1),
+			}
+		}
+	}
+	if topIncCat.Name == "" {
+		topIncCat = response.AnalysisTopCategory{Name: "-", TotalDisplay: "Rp 0"}
+	}
+
+	daysDivider := float64(time.Now().Day())
+	if daysDivider == 0 {
+		daysDivider = 1
+	}
+	dailyAvgInc := totalIncome / daysDivider
+
+	return response.AnalysisIncomeData{
+		Period:      "this_month",
+		PeriodLabel: "This Month",
+		Summary: response.AnalysisIncomeSummary{
+			TotalIncome:        totalIncome,
+			TotalIncomeDisplay: strings.Replace(formatAmount(totalIncome, true), "+", "", 1),
+		},
+		Chart: response.AnalysisChart{
+			Categories: incCats,
+		},
+		TopCategory: topIncCat,
+		DailyAverage: response.AnalysisDailyAverage{
+			Label:         "Average",
+			Amount:        dailyAvgInc,
+			AmountDisplay: strings.Replace(formatAmount(dailyAvgInc, true), "+", "", 1),
+		},
+	}
 }
