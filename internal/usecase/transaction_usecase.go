@@ -289,6 +289,74 @@ func (u *TransactionUsecase) AddExpenseTransaction(spreadsheetID string, sheetNa
 	return nil
 }
 
+// UpdateTransaction updates an existing transaction (income or expense) based on ID and type
+func (u *TransactionUsecase) UpdateTransaction(spreadsheetID string, sheetName string, req request.UpdateTransactionRequest, updatedBy string) error {
+	// Parse ID to extract row number
+	// ID format: txn_exp_1, txn_inc_2, etc.
+	var rowNumber int
+	var idPrefix string
+
+	if strings.HasPrefix(req.ID, "txn_exp_") {
+		idPrefix = "txn_exp_"
+	} else if strings.HasPrefix(req.ID, "txn_inc_") {
+		idPrefix = "txn_inc_"
+	} else {
+		return fmt.Errorf("invalid transaction ID format: %s", req.ID)
+	}
+
+	idNumStr := strings.TrimPrefix(req.ID, idPrefix)
+	idNum, err := strconv.Atoi(idNumStr)
+	if err != nil {
+		return fmt.Errorf("invalid transaction ID number: %s", req.ID)
+	}
+
+	// Calculate actual row number (ID starts from 1, row 2 is the first data row)
+	rowNumber = idNum + 1
+
+	notes := ""
+	if req.Notes != nil {
+		notes = *req.Notes
+	}
+
+	// Update based on transaction type
+	if req.Type == "expense" {
+		// Expense columns: A-G (Description, Category, Priority, Amount, Notes, TransactionAt, CreatedBy)
+		values := []interface{}{
+			req.Description,
+			req.Category,
+			req.Priority,
+			req.Amount,
+			notes,
+			req.TransactionAt,
+			updatedBy,
+		}
+
+		rangeStr := fmt.Sprintf("%s!A%d:G%d", sheetName, rowNumber, rowNumber)
+		if err := u.sheetRepo.UpdateRange(spreadsheetID, rangeStr, [][]interface{}{values}); err != nil {
+			return fmt.Errorf("failed to update expense transaction: %w", err)
+		}
+	} else if req.Type == "income" {
+		// Income columns: I-N (Description, Category, Amount, Notes, TransactionAt, CreatedBy)
+		values := []interface{}{
+			req.Description,
+			req.Category,
+			req.Amount,
+			notes,
+			req.TransactionAt,
+			updatedBy,
+		}
+
+		rangeStr := fmt.Sprintf("%s!I%d:N%d", sheetName, rowNumber, rowNumber)
+		if err := u.sheetRepo.UpdateRange(spreadsheetID, rangeStr, [][]interface{}{values}); err != nil {
+			return fmt.Errorf("failed to update income transaction: %w", err)
+		}
+	} else {
+		return fmt.Errorf("invalid transaction type: %s (must be 'income' or 'expense')", req.Type)
+	}
+
+	return nil
+}
+
 // GetAnalysis fetches the financial analysis data
 func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string) (*response.AnalysisResponse, error) {
 	ranges := []string{
