@@ -198,8 +198,9 @@ func (h *TransactionController) ListTransaction(c echo.Context) error {
 
 	dateFilter := c.QueryParam("date")
 	categoryFilter := c.QueryParam("category")
+	typeFilter := c.QueryParam("type")
 
-	data, err := h.transactionUsecase.GetListTransaction(spreadsheetID, sheetName, dateFilter, categoryFilter)
+	data, err := h.transactionUsecase.GetListTransaction(spreadsheetID, sheetName, dateFilter, categoryFilter, typeFilter)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to fetch transactions: " + err.Error(),

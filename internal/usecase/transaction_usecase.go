@@ -23,7 +23,7 @@ func NewTransactionUsecase(sheetRepo *repository.SheetRepository) *TransactionUs
 }
 
 // GetListTransaction fetches transaction data from sheet A2:G (Expense) & I2:N (Income) and formats it
-func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName string, dateFilter string, categoryFilter string) (*response.TransactionResponse, error) {
+func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName string, dateFilter string, categoryFilter string, typeFilter string) (*response.TransactionResponse, error) {
 	expenseRange := sheetName + "!A2:G"
 	incomeRange := sheetName + "!I2:N"
 
@@ -50,73 +50,79 @@ func (u *TransactionUsecase) GetListTransaction(spreadsheetID string, sheetName 
 	}
 	var allItems []rawItem
 
-	for i, row := range expenseRows {
-		if len(row) < 6 {
-			continue
-		}
-		desc := fmt.Sprintf("%v", row[0])
-		cat := fmt.Sprintf("%v", row[1])
-		amtF := parseAmount(row[3])
-		t := parseDate(row[5])
-		if t.IsZero() {
-			continue
-		}
+	// Skip processing expense rows if type filter is set to "income"
+	if typeFilter == "" || typeFilter == "expense" {
+		for i, row := range expenseRows {
+			if len(row) < 6 {
+				continue
+			}
+			desc := fmt.Sprintf("%v", row[0])
+			cat := fmt.Sprintf("%v", row[1])
+			amtF := parseAmount(row[3])
+			t := parseDate(row[5])
+			if t.IsZero() {
+				continue
+			}
 
-		dateStr := t.Format("2006-01-02")
-		if dateFilter != "" && dateStr != dateFilter {
-			continue
-		}
-		if categoryFilter != "" && !strings.EqualFold(cat, categoryFilter) {
-			continue
-		}
+			dateStr := t.Format("2006-01-02")
+			if dateFilter != "" && dateStr != dateFilter {
+				continue
+			}
+			if categoryFilter != "" && !strings.EqualFold(cat, categoryFilter) {
+				continue
+			}
 
-		timeStr := t.Format("15:04")
+			timeStr := t.Format("15:04")
 
-		item := response.TransactionItemResponse{
-			ID:              fmt.Sprintf("txn_exp_%d", i+1),
-			TransactionName: desc,
-			Category:        cat,
-			Time:            timeStr,
-			Amount:          -amtF,
-			AmountDisplay:   formatAmount(amtF, false),
-			Type:            "expense",
+			item := response.TransactionItemResponse{
+				ID:              fmt.Sprintf("txn_exp_%d", i+1),
+				TransactionName: desc,
+				Category:        cat,
+				Time:            timeStr,
+				Amount:          -amtF,
+				AmountDisplay:   formatAmount(amtF, false),
+				Type:            "expense",
+			}
+			allItems = append(allItems, rawItem{item, dateStr, t})
 		}
-		allItems = append(allItems, rawItem{item, dateStr, t})
 	}
 
-	for i, row := range incomeRows {
-		if len(row) < 5 {
-			continue
-		}
-		desc := fmt.Sprintf("%v", row[0])
-		cat := fmt.Sprintf("%v", row[1])
-		amtF := parseAmount(row[2])
-		t := parseDate(row[4])
-		if t.IsZero() {
-			continue
-		}
+	// Skip processing income rows if type filter is set to "expense"
+	if typeFilter == "" || typeFilter == "income" {
+		for i, row := range incomeRows {
+			if len(row) < 5 {
+				continue
+			}
+			desc := fmt.Sprintf("%v", row[0])
+			cat := fmt.Sprintf("%v", row[1])
+			amtF := parseAmount(row[2])
+			t := parseDate(row[4])
+			if t.IsZero() {
+				continue
+			}
 
-		dateStr := t.Format("2006-01-02")
-		if dateFilter != "" && dateStr != dateFilter {
-			continue
-		}
-		if categoryFilter != "" && !strings.EqualFold(cat, categoryFilter) {
-			continue
-		}
+			dateStr := t.Format("2006-01-02")
+			if dateFilter != "" && dateStr != dateFilter {
+				continue
+			}
+			if categoryFilter != "" && !strings.EqualFold(cat, categoryFilter) {
+				continue
+			}
 
-		timeStr := t.Format("15:04")
+			timeStr := t.Format("15:04")
 
-		item := response.TransactionItemResponse{
-			ID:              fmt.Sprintf("txn_inc_%d", i+1),
-			TransactionName: desc,
-			Category:        cat,
-			Time:            timeStr,
-			Amount:          amtF,
-			AmountDisplay:   formatAmount(amtF, true),
-			Type:            "income",
-			Label:           "PEMASUKAN",
+			item := response.TransactionItemResponse{
+				ID:              fmt.Sprintf("txn_inc_%d", i+1),
+				TransactionName: desc,
+				Category:        cat,
+				Time:            timeStr,
+				Amount:          amtF,
+				AmountDisplay:   formatAmount(amtF, true),
+				Type:            "income",
+				Label:           "PEMASUKAN",
+			}
+			allItems = append(allItems, rawItem{item, dateStr, t})
 		}
-		allItems = append(allItems, rawItem{item, dateStr, t})
 	}
 
 	sort.Slice(allItems, func(i, j int) bool {
