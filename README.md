@@ -43,12 +43,3 @@ Go backend service using Echo framework with Google OAuth login and Google Sheet
    ```bash
    make run
    ```
-
-## API Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/health` | No | Health check |
-| GET | `/auth/google/login` | No | Redirect to Google OAuth |
-| GET | `/auth/google/callback` | No | OAuth callback |
-| GET | `/api/me` | JWT | Get current user |
