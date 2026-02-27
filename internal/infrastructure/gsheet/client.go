@@ -29,7 +29,7 @@ func NewClient(serviceAccountFile string) (*Client, error) {
 		return nil, fmt.Errorf("unable to create sheets service: %w", err)
 	}
 
-	log.Println("✅ Google Sheets client initialized successfully")
+	log.Println("Google Sheets client initialized successfully")
 
 	return &Client{
 		Service: srv,

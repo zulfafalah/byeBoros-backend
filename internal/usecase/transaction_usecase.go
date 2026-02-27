@@ -363,31 +363,206 @@ func (u *TransactionUsecase) UpdateTransaction(spreadsheetID string, sheetName s
 	return nil
 }
 
-// GetAnalysis fetches the financial analysis data
-func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string) (*response.AnalysisResponse, error) {
-	ranges := []string{
-		sheetName + "!AA2",  // 0: total expense
-		sheetName + "!P2:T", // 1: exp categories (Nama Kategori, Sub kategori, Budget, Alokasi, Sisa Budget)
-		sheetName + "!A2:G", // 2: exp priorities
-		sheetName + "!AD2",  // 3: total income
-		sheetName + "!I2:N", // 4: inc categories/transactions
-		"Master Data!H4:H",  // 5: master income categories
+// getIndonesianMonthName returns Indonesian month name for a given month number (1-12)
+func getIndonesianMonthName(month int) string {
+	months := []string{
+		"Januari", "Februari", "Maret", "April", "Mei", "Juni",
+		"Juli", "Agustus", "September", "Oktober", "November", "Desember",
 	}
-
-	valueRanges, err := u.sheetRepo.BatchGetValues(spreadsheetID, ranges)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch analysis data: %w", err)
+	if month < 1 || month > 12 {
+		return ""
 	}
+	return months[month-1]
+}
 
-	getVal := func(idx int) [][]interface{} {
-		if len(valueRanges) > idx && valueRanges[idx] != nil && valueRanges[idx].Values != nil {
-			return valueRanges[idx].Values
+// getSheetNamesForPeriod returns a list of sheet names based on the period filter
+func getSheetNamesForPeriod(currentSheetName string, period string) []string {
+	now := time.Now()
+
+	switch period {
+	case "Day":
+		// Only return current sheet
+		return []string{currentSheetName}
+
+	case "Month":
+		// Only return current sheet
+		return []string{currentSheetName}
+
+	case "3 Months":
+		// Return last 3 months including current month
+		sheets := []string{}
+		for i := 2; i >= 0; i-- {
+			monthDate := now.AddDate(0, -i, 0)
+			sheetName := getIndonesianMonthName(int(monthDate.Month()))
+			if sheetName != "" {
+				sheets = append(sheets, sheetName)
+			}
 		}
-		return [][]interface{}{}
+		return sheets
+
+	case "6 Months":
+		// Return last 6 months including current month
+		sheets := []string{}
+		for i := 5; i >= 0; i-- {
+			monthDate := now.AddDate(0, -i, 0)
+			sheetName := getIndonesianMonthName(int(monthDate.Month()))
+			if sheetName != "" {
+				sheets = append(sheets, sheetName)
+			}
+		}
+		return sheets
+
+	case "Year":
+		// Return all 12 months of the current year
+		sheets := []string{}
+		for month := 1; month <= 12; month++ {
+			sheetName := getIndonesianMonthName(month)
+			if sheetName != "" {
+				sheets = append(sheets, sheetName)
+			}
+		}
+		return sheets
+
+	default:
+		return []string{currentSheetName}
+	}
+}
+
+// getPeriodLabel returns a display label for the period
+func getPeriodLabel(period string) string {
+	switch period {
+	case "Day":
+		return "Today"
+	case "Month":
+		return "This Month"
+	case "3 Months":
+		return "Last 3 Months"
+	case "6 Months":
+		return "Last 6 Months"
+	case "Year":
+		return "This Year"
+	default:
+		return "This Month"
+	}
+}
+
+// getDaysInPeriod returns the number of days to use for daily average calculation
+func getDaysInPeriod(period string) float64 {
+	now := time.Now()
+
+	switch period {
+	case "Day":
+		return 1
+
+	case "Month":
+		// Current day of the month
+		return float64(now.Day())
+
+	case "3 Months":
+		// Days in the last 3 months up to today
+		threeMonthsAgo := now.AddDate(0, -3, 0)
+		return float64(now.Sub(threeMonthsAgo).Hours() / 24)
+
+	case "6 Months":
+		// Days in the last 6 months up to today
+		sixMonthsAgo := now.AddDate(0, -6, 0)
+		return float64(now.Sub(sixMonthsAgo).Hours() / 24)
+
+	case "Year":
+		// Days from January 1st to today
+		yearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		return float64(now.Sub(yearStart).Hours()/24) + 1
+
+	default:
+		return float64(now.Day())
+	}
+}
+
+// GetAnalysis fetches the financial analysis data
+func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string, period string) (*response.AnalysisResponse, error) {
+	// Get sheet names based on period
+	sheetNames := getSheetNamesForPeriod(sheetName, period)
+
+	// For Day and Month periods, or if only one sheet
+	if period == "Day" || period == "Month" || len(sheetNames) == 1 {
+		ranges := []string{
+			sheetName + "!AA2",  // 0: total expense
+			sheetName + "!P2:T", // 1: exp categories (Nama Kategori, Sub kategori, Budget, Alokasi, Sisa Budget)
+			sheetName + "!A2:G", // 2: exp priorities
+			sheetName + "!AD2",  // 3: total income
+			sheetName + "!I2:N", // 4: inc categories/transactions
+			"Master Data!H4:H",  // 5: master income categories
+		}
+
+		valueRanges, err := u.sheetRepo.BatchGetValues(spreadsheetID, ranges)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch analysis data: %w", err)
+		}
+
+		getVal := func(idx int) [][]interface{} {
+			if len(valueRanges) > idx && valueRanges[idx] != nil && valueRanges[idx].Values != nil {
+				return valueRanges[idx].Values
+			}
+			return [][]interface{}{}
+		}
+
+		expenseData := u.getExpenseAnalysis(getVal(0), getVal(1), getVal(2), period)
+		incomeData := u.getIncomeAnalysis(getVal(3), getVal(4), getVal(5), period)
+
+		resp := &response.AnalysisResponse{
+			Status: "success",
+			Data: response.AnalysisData{
+				Expense: expenseData,
+				Income:  incomeData,
+			},
+		}
+		return resp, nil
 	}
 
-	expenseData := u.getExpenseAnalysis(getVal(0), getVal(1), getVal(2))
-	incomeData := u.getIncomeAnalysis(getVal(3), getVal(4), getVal(5))
+	// For multi-month periods, aggregate data from multiple sheets
+	var allExpenseCategories [][]interface{}
+	var allExpensePriorities [][]interface{}
+	var allIncomeTransactions [][]interface{}
+
+	for _, sheet := range sheetNames {
+		ranges := []string{
+			sheet + "!P2:T", // exp categories
+			sheet + "!A2:G", // exp priorities
+			sheet + "!I2:N", // inc transactions
+		}
+
+		valueRanges, err := u.sheetRepo.BatchGetValues(spreadsheetID, ranges)
+		if err != nil {
+			// Skip sheets that don't exist
+			continue
+		}
+
+		if len(valueRanges) > 0 && valueRanges[0] != nil && valueRanges[0].Values != nil {
+			allExpenseCategories = append(allExpenseCategories, valueRanges[0].Values...)
+		}
+		if len(valueRanges) > 1 && valueRanges[1] != nil && valueRanges[1].Values != nil {
+			allExpensePriorities = append(allExpensePriorities, valueRanges[1].Values...)
+		}
+		if len(valueRanges) > 2 && valueRanges[2] != nil && valueRanges[2].Values != nil {
+			allIncomeTransactions = append(allIncomeTransactions, valueRanges[2].Values...)
+		}
+	}
+
+	// Get master income categories
+	masterIncRanges := []string{"Master Data!H4:H"}
+	masterIncValueRanges, err := u.sheetRepo.BatchGetValues(spreadsheetID, masterIncRanges)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch master income categories: %w", err)
+	}
+
+	var masterIncData [][]interface{}
+	if len(masterIncValueRanges) > 0 && masterIncValueRanges[0] != nil && masterIncValueRanges[0].Values != nil {
+		masterIncData = masterIncValueRanges[0].Values
+	}
+
+	// Calculate totals from aggregated data (no AA2/AD2 for multi-month)
+	expenseData := u.getExpenseAnalysis(nil, allExpenseCategories, allExpensePriorities, period)
+	incomeData := u.getIncomeAnalysis(nil, allIncomeTransactions, masterIncData, period)
 
 	resp := &response.AnalysisResponse{
 		Status: "success",
@@ -399,7 +574,7 @@ func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string)
 	return resp, nil
 }
 
-func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}) response.AnalysisExpenseData {
+func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}, period string) response.AnalysisExpenseData {
 	var totalSpent float64
 	if len(aa2) > 0 && len(aa2[0]) > 0 {
 		totalSpent = parseAmount(aa2[0][0])
@@ -407,8 +582,10 @@ func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}) r
 
 	// List each subcategory row with category_name and sub_category_name from P2:T
 	// P=Nama Kategori(0), Q=Sub kategori(1), R=Budget(2), S=Alokasi(3), T=Sisa Budget(4)
-	expCats := []response.AnalysisCategory{}
+	// Use map to consolidate duplicate categories (for multi-month aggregation)
+	catMap := make(map[string]*response.AnalysisCategory)
 	var expCatTotal float64
+
 	for _, row := range p2t {
 		if len(row) < 4 {
 			continue
@@ -419,12 +596,40 @@ func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}) r
 			continue
 		}
 		alokasi := parseAmount(row[3]) // Alokasi column
-		expCats = append(expCats, response.AnalysisCategory{
-			CategoryName:    catName,
-			SubCategoryName: subCatName,
-			Amount:          alokasi,
-		})
+
+		// Create unique key for category + subcategory
+		key := catName + "|" + subCatName
+
+		if existing, exists := catMap[key]; exists {
+			// Aggregate amounts for the same category
+			existing.Amount += alokasi
+		} else {
+			catMap[key] = &response.AnalysisCategory{
+				CategoryName:    catName,
+				SubCategoryName: subCatName,
+				Amount:          alokasi,
+			}
+		}
 		expCatTotal += alokasi
+	}
+
+	// Convert map to slice
+	expCats := []response.AnalysisCategory{}
+	for _, cat := range catMap {
+		expCats = append(expCats, *cat)
+	}
+
+	// Sort by category name, then subcategory name for consistent output
+	sort.SliceStable(expCats, func(i, j int) bool {
+		if expCats[i].CategoryName == expCats[j].CategoryName {
+			return expCats[i].SubCategoryName < expCats[j].SubCategoryName
+		}
+		return expCats[i].CategoryName < expCats[j].CategoryName
+	})
+
+	// If totalSpent is 0 (multi-month aggregation), use the sum of categories
+	if totalSpent == 0 && expCatTotal > 0 {
+		totalSpent = expCatTotal
 	}
 
 	var topExpCat response.AnalysisTopCategory
@@ -490,15 +695,15 @@ func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}) r
 		return order[priDist[i].Level] < order[priDist[j].Level]
 	})
 
-	daysDivider := float64(time.Now().Day())
+	daysDivider := getDaysInPeriod(period)
 	if daysDivider == 0 {
 		daysDivider = 1
 	}
 	dailyAvgExp := totalSpent / daysDivider
 
 	return response.AnalysisExpenseData{
-		Period:      "this_month",
-		PeriodLabel: "This Month",
+		Period:      strings.ToLower(strings.ReplaceAll(period, " ", "_")),
+		PeriodLabel: getPeriodLabel(period),
 		Summary: response.AnalysisExpenseSummary{
 			TotalSpent:        totalSpent,
 			TotalSpentDisplay: strings.Replace(formatAmount(totalSpent, false), "-", "", 1),
@@ -516,7 +721,7 @@ func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}) r
 	}
 }
 
-func (u *TransactionUsecase) getIncomeAnalysis(ad2, incCatsData, masterIncData [][]interface{}) response.AnalysisIncomeData {
+func (u *TransactionUsecase) getIncomeAnalysis(ad2, incCatsData, masterIncData [][]interface{}, period string) response.AnalysisIncomeData {
 	var totalIncome float64
 	if len(ad2) > 0 && len(ad2[0]) > 0 {
 		totalIncome = parseAmount(ad2[0][0])
@@ -568,6 +773,11 @@ func (u *TransactionUsecase) getIncomeAnalysis(ad2, incCatsData, masterIncData [
 		}
 	}
 
+	// Sort income categories by name for consistent output
+	sort.SliceStable(incCats, func(i, j int) bool {
+		return incCats[i].Name < incCats[j].Name
+	})
+
 	var incCatTotal float64
 	for _, c := range incCats {
 		incCatTotal += c.Amount
@@ -597,15 +807,15 @@ func (u *TransactionUsecase) getIncomeAnalysis(ad2, incCatsData, masterIncData [
 		topIncCat = response.AnalysisTopCategory{Name: "-", TotalDisplay: "Rp 0"}
 	}
 
-	daysDivider := float64(time.Now().Day())
+	daysDivider := getDaysInPeriod(period)
 	if daysDivider == 0 {
 		daysDivider = 1
 	}
 	dailyAvgInc := totalIncome / daysDivider
 
 	return response.AnalysisIncomeData{
-		Period:      "this_month",
-		PeriodLabel: "This Month",
+		Period:      strings.ToLower(strings.ReplaceAll(period, " ", "_")),
+		PeriodLabel: getPeriodLabel(period),
 		Summary: response.AnalysisIncomeSummary{
 			TotalIncome:        totalIncome,
 			TotalIncomeDisplay: strings.Replace(formatAmount(totalIncome, true), "+", "", 1),

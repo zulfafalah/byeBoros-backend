@@ -213,7 +213,7 @@ func (h *TransactionController) ListTransaction(c echo.Context) error {
 	})
 }
 
-// GetAnalysis fetches the financial analysis data
+// GetAnalysis fetches the financial analysis data with optional period filter
 func (h *TransactionController) GetAnalysis(c echo.Context) error {
 	spreadsheetID, ok := c.Get("spreadsheet_id").(string)
 	if !ok || spreadsheetID == "" {
@@ -229,7 +229,28 @@ func (h *TransactionController) GetAnalysis(c echo.Context) error {
 		})
 	}
 
-	data, err := h.transactionUsecase.GetAnalysis(spreadsheetID, sheetName)
+	// Get period query parameter (default: "Month")
+	period := c.QueryParam("period")
+	if period == "" {
+		period = "Month"
+	}
+
+	// Validate period
+	validPeriods := []string{"Day", "Month", "3 Months", "6 Months", "Year"}
+	isValid := false
+	for _, vp := range validPeriods {
+		if period == vp {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid period. Must be one of: Day, Month, 3 Months, 6 Months, Year",
+		})
+	}
+
+	data, err := h.transactionUsecase.GetAnalysis(spreadsheetID, sheetName, period)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to fetch analysis: " + err.Error(),

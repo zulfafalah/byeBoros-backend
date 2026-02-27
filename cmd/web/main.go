@@ -53,6 +53,6 @@ func main() {
 	apphttp.SetupRoutes(e, authController, transactionController, categoryController, authUsecase)
 
 	// Start server
-	log.Printf("🚀 Server starting on port %s", cfg.Port)
+	log.Printf("Server starting on port %s", cfg.Port)
 	e.Logger.Fatal(e.Start(":" + cfg.Port))
 }
