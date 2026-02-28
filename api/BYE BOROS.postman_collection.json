@@ -1,0 +1,775 @@
+{
+  "info": {
+    "_postman_id": "038cd736-923e-4480-ad2a-f6d8e1acc654",
+    "name": "BYE BOROS",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12744419"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Google Login",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/google/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "google",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transaction",
+      "item": [
+        {
+          "name": "List Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Februari",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/transaction?type=income",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "transaction"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Listrik",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "date",
+                  "value": "2026-02-27",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "income"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Income",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Januari",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Gaji Bulanan\",\n  \"category\": \"Gaji\",\n  \"amount\": 150000,\n  \"notes\": \"Tunjangan\",\n  \"transaction_at\": \"22/02/2026 14:30:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/transaction/income",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "transaction",
+                "income"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update expense",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Februari",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"txn_exp_2\",\n  \"type\": \"expense\",\n  \"description\": \"Makan Siang new\",\n  \"category\": \"Food\",\n  \"priority\": \"High\",\n  \"amount\": 50000,\n  \"notes\": \"Groceries\",\n  \"transaction_at\": \"2026-02-27\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/transaction",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "transaction"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Update expense",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Spreadsheet-ID",
+                    "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-Sheet-Name",
+                    "value": "Februari",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"id\": \"txn_exp_2\",\n  \"type\": \"expense\",\n  \"description\": \"Makan Siang new\",\n  \"category\": \"Food\",\n  \"priority\": \"High\",\n  \"amount\": 50000,\n  \"notes\": \"Groceries\",\n  \"transaction_at\": \"2026-02-27\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/transaction",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transaction"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Date",
+                  "value": "Fri, 27 Feb 2026 13:20:12 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "47"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Transaction updated successfully\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Income",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Februari",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"txn_inc_2\",\n  \"type\": \"income\",\n  \"description\": \"Salary\",\n  \"category\": \"Work\",\n  \"amount\": 5000000,\n  \"transaction_at\": \"2026-02-27\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/transaction",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "transaction"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Update Income",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Spreadsheet-ID",
+                    "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-Sheet-Name",
+                    "value": "Februari",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"id\": \"txn_inc_2\",\n  \"type\": \"income\",\n  \"description\": \"Salary\",\n  \"category\": \"Work\",\n  \"amount\": 5000000,\n  \"transaction_at\": \"2026-02-27\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/transaction",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "transaction"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Date",
+                  "value": "Fri, 27 Feb 2026 13:23:52 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "47"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"message\": \"Transaction updated successfully\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Expense",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Januari",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Makan Dimsum\",\n  \"category\": \"Food\",\n  \"priority\": \"low\",\n  \"amount\": 150000,\n  \"notes\": \"karena diajak temen\",\n  \"transaction_at\": \"22/02/2026 14:30:00\"\n}\n\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/transaction/expense",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "transaction",
+                "expense"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Category",
+      "item": [
+        {
+          "name": "List Category",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Master Data",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/category",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "category"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-02-22",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "as",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Category Income",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Master Data",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/category/income",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "category",
+                "income"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-02-22",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "as",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "List Category Income",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Spreadsheet-ID",
+                    "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-Sheet-Name",
+                    "value": "Master Data",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/category/income",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category",
+                    "income"
+                  ],
+                  "query": [
+                    {
+                      "key": "date",
+                      "value": "2026-02-22",
+                      "disabled": true
+                    },
+                    {
+                      "key": "category",
+                      "value": "as",
+                      "type": "text",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Date",
+                  "value": "Thu, 26 Feb 2026 20:56:47 GMT"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "43"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"categories\": [\n        \"Gaji\",\n        \"Dividen\",\n        \"Hadiah\"\n    ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Save/Replace",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Master Data",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"daily_budget\": 100,\n    \"monthly_budget\": 100,\n    \"categories\": [\n        {\n            \"category_name\": \"Kebutuhan Harian\",\n            \"sub_category_name\": \"Makan & minum\",\n            \"budget\": 1000000\n        },\n        {\n            \"category_name\": \"Kebutuhan Harian\",\n            \"sub_category_name\": \"Belanja rumah tangga\",\n            \"budget\": 200000\n        },\n        {\n            \"category_name\": \"Kebutuhan Harian\",\n            \"sub_category_name\": \"Groceries\",\n            \"budget\": 200000\n        },\n        {\n            \"category_name\": \"Tempat Tinggal\",\n            \"sub_category_name\": \"Sewa/KPR\",\n            \"budget\": 2000000\n        },\n        {\n            \"category_name\": \"Tempat Tinggal\",\n            \"sub_category_name\": \"Listrik\",\n            \"budget\": 200000\n        },\n        {\n            \"category_name\": \"Tempat Tinggal\",\n            \"sub_category_name\": \"Air\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Tempat Tinggal\",\n            \"sub_category_name\": \"Internet/WiFi\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Tempat Tinggal\",\n            \"sub_category_name\": \"Kebersihan/maintenance rumah\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Transportasi\",\n            \"sub_category_name\": \"Bensin/BBM\",\n            \"budget\": 200000\n        },\n        {\n            \"category_name\": \"Transportasi\",\n            \"sub_category_name\": \"Parkir\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Transportasi\",\n            \"sub_category_name\": \"Tol\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Transportasi\",\n            \"sub_category_name\": \"Transportasi umum\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Transportasi\",\n            \"sub_category_name\": \"Service motor/mobil\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Kesehatan\",\n            \"sub_category_name\": \"Obat-obatan\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Kesehatan\",\n            \"sub_category_name\": \"Vitamin\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Kesehatan\",\n            \"sub_category_name\": \"BPJS/Asuransi Kesehatan\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Kesehatan\",\n            \"sub_category_name\": \"Pemeriksaan dokter\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Komunikasi & Langganan\",\n            \"sub_category_name\": \"Pulsa\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Komunikasi & Langganan\",\n            \"sub_category_name\": \"Paket data\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Komunikasi & Langganan\",\n            \"sub_category_name\": \"Streaming\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Komunikasi & Langganan\",\n            \"sub_category_name\": \"Layanan cloud\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Makan di Luar / Nongkrong\",\n            \"sub_category_name\": \"Restoran\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Makan di Luar / Nongkrong\",\n            \"sub_category_name\": \"Cafe\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Makan di Luar / Nongkrong\",\n            \"sub_category_name\": \"Jajanan\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Belanja Pribadi\",\n            \"sub_category_name\": \"Baju\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Belanja Pribadi\",\n            \"sub_category_name\": \"Skincare\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Belanja Pribadi\",\n            \"sub_category_name\": \"Gadget\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Belanja Pribadi\",\n            \"sub_category_name\": \"Aksesoris\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Kerja / Produktivitas\",\n            \"sub_category_name\": \"Peralatan kerja\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Kerja / Produktivitas\",\n            \"sub_category_name\": \"Software berbayar\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Kerja / Produktivitas\",\n            \"sub_category_name\": \"Biaya coworking\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Sosial\",\n            \"sub_category_name\": \"Hadiah\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Sosial\",\n            \"sub_category_name\": \"Donasi\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Sosial\",\n            \"sub_category_name\": \"Kondangan\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Sosial\",\n            \"sub_category_name\": \"THR Hari Raya\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Hiburan\",\n            \"sub_category_name\": \"Nonton\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Hiburan\",\n            \"sub_category_name\": \"Hobi\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Pendidikan / Pengembangan Diri\",\n            \"sub_category_name\": \"Kursus\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Pendidikan / Pengembangan Diri\",\n            \"sub_category_name\": \"Buku\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Pendidikan / Pengembangan Diri\",\n            \"sub_category_name\": \"Workshop\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Keuangan\",\n            \"sub_category_name\": \"Cicilan\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Keuangan\",\n            \"sub_category_name\": \"Piutang\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Keuangan\",\n            \"sub_category_name\": \"Biaya admin bank\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Keuangan\",\n            \"sub_category_name\": \"Dana darurat\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Keluarga\",\n            \"sub_category_name\": \"Orang Tua\",\n            \"budget\": 0\n        },\n        {\n            \"category_name\": \"Keluarga\",\n            \"sub_category_name\": \"Adik/Kakak\",\n            \"budget\": 10000\n        },\n        {\n            \"category_name\": \"Keluarga\",\n            \"sub_category_name\": \"Saudara orang tua\",\n            \"budget\": 1000\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/category",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "category"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-02-22",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "as",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analysis",
+      "item": [
+        {
+          "name": "Analisis",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Spreadsheet-ID",
+                "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                "type": "text"
+              },
+              {
+                "key": "X-Sheet-Name",
+                "value": "Februari",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/analysis?period=Month",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "analysis"
+              ],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "Month"
+                },
+                {
+                  "key": "category",
+                  "value": "as",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Analisis",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Spreadsheet-ID",
+                    "value": "1jZp3nUe4dq1r2Uwz6p2m3K8OzJpSIKA7eFa8p5sOLqI",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-Sheet-Name",
+                    "value": "Februari",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/analysis?period=Month",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "analysis"
+                  ],
+                  "query": [
+                    {
+                      "key": "period",
+                      "value": "Month"
+                    },
+                    {
+                      "key": "category",
+                      "value": "as",
+                      "type": "text",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": null,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Date",
+                  "value": "Fri, 27 Feb 2026 17:27:19 GMT"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"success\",\n    \"data\": {\n        \"expense\": {\n            \"period\": \"month\",\n            \"period_label\": \"This Month\",\n            \"summary\": {\n                \"total_spent\": 12802000,\n                \"total_spent_display\": \"Rp 12.802.000\"\n            },\n            \"chart\": {\n                \"categories\": [\n                    {\n                        \"category_name\": \"Belanja Pribadi\",\n                        \"sub_category_name\": \"Aksesoris\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Belanja Pribadi\",\n                        \"sub_category_name\": \"Baju\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Belanja Pribadi\",\n                        \"sub_category_name\": \"Gadget\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Belanja Pribadi\",\n                        \"sub_category_name\": \"Skincare\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Hiburan\",\n                        \"sub_category_name\": \"Hobi\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Hiburan\",\n                        \"sub_category_name\": \"Nonton\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kebutuhan Harian\",\n                        \"sub_category_name\": \"Belanja rumah tangga\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kebutuhan Harian\",\n                        \"sub_category_name\": \"Groceries\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kebutuhan Harian\",\n                        \"sub_category_name\": \"Makan & minum\",\n                        \"amount\": 10000,\n                        \"percent\": 100\n                    },\n                    {\n                        \"category_name\": \"Keluarga\",\n                        \"sub_category_name\": \"Adik/Kakak\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Keluarga\",\n                        \"sub_category_name\": \"Orang Tua\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Keluarga\",\n                        \"sub_category_name\": \"Saudara orang tua\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kerja / Produktivitas\",\n                        \"sub_category_name\": \"Biaya coworking\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kerja / Produktivitas\",\n                        \"sub_category_name\": \"Peralatan kerja\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kerja / Produktivitas\",\n                        \"sub_category_name\": \"Software berbayar\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kesehatan\",\n                        \"sub_category_name\": \"BPJS/Asuransi Kesehatan\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kesehatan\",\n                        \"sub_category_name\": \"Obat-obatan\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kesehatan\",\n                        \"sub_category_name\": \"Pemeriksaan dokter\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Kesehatan\",\n                        \"sub_category_name\": \"Vitamin\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Keuangan\",\n                        \"sub_category_name\": \"Biaya admin bank\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Keuangan\",\n                        \"sub_category_name\": \"Cicilan\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Keuangan\",\n                        \"sub_category_name\": \"Dana darurat\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Keuangan\",\n                        \"sub_category_name\": \"Piutang\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Komunikasi & Langganan\",\n                        \"sub_category_name\": \"Layanan cloud\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Komunikasi & Langganan\",\n                        \"sub_category_name\": \"Paket data\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Komunikasi & Langganan\",\n                        \"sub_category_name\": \"Pulsa\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Komunikasi & Langganan\",\n                        \"sub_category_name\": \"Streaming\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Makan di Luar / Nongkrong\",\n                        \"sub_category_name\": \"Cafe\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Makan di Luar / Nongkrong\",\n                        \"sub_category_name\": \"Jajanan\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Makan di Luar / Nongkrong\",\n                        \"sub_category_name\": \"Restoran\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Pendidikan / Pengembangan Diri\",\n                        \"sub_category_name\": \"Buku\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Pendidikan / Pengembangan Diri\",\n                        \"sub_category_name\": \"Kursus\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Pendidikan / Pengembangan Diri\",\n                        \"sub_category_name\": \"Workshop\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Sosial\",\n                        \"sub_category_name\": \"Donasi\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Sosial\",\n                        \"sub_category_name\": \"Hadiah\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Sosial\",\n                        \"sub_category_name\": \"Kondangan\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Sosial\",\n                        \"sub_category_name\": \"THR Hari Raya\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Tempat Tinggal\",\n                        \"sub_category_name\": \"Air\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Tempat Tinggal\",\n                        \"sub_category_name\": \"Internet/WiFi\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Tempat Tinggal\",\n                        \"sub_category_name\": \"Kebersihan/maintenance rumah\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Tempat Tinggal\",\n                        \"sub_category_name\": \"Listrik\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Tempat Tinggal\",\n                        \"sub_category_name\": \"Sewa/KPR\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Transportasi\",\n                        \"sub_category_name\": \"Bensin/BBM\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Transportasi\",\n                        \"sub_category_name\": \"Parkir\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Transportasi\",\n                        \"sub_category_name\": \"Service motor/mobil\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Transportasi\",\n                        \"sub_category_name\": \"Tol\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"category_name\": \"Transportasi\",\n                        \"sub_category_name\": \"Transportasi umum\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    }\n                ]\n            },\n            \"top_category\": {\n                \"name\": \"Makan & minum\",\n                \"total\": 10000,\n                \"total_display\": \"Rp 10.000\"\n            },\n            \"daily_average\": {\n                \"label\": \"Average\",\n                \"amount\": 457214.28571428574,\n                \"amount_display\": \"Rp 457.214\"\n            },\n            \"priority_distribution\": [\n                {\n                    \"level\": \"other\",\n                    \"label\": \"medium\",\n                    \"amount\": 10000,\n                    \"amount_display\": \"Rp 10.000\"\n                }\n            ]\n        },\n        \"income\": {\n            \"period\": \"month\",\n            \"period_label\": \"This Month\",\n            \"summary\": {\n                \"total_income\": 0,\n                \"total_income_display\": \"Rp 0\"\n            },\n            \"chart\": {\n                \"categories\": [\n                    {\n                        \"name\": \"Bonus\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"name\": \"Dividen\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"name\": \"Gaji\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"name\": \"Hadiah\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    },\n                    {\n                        \"name\": \"THR\",\n                        \"amount\": 0,\n                        \"percent\": 0\n                    }\n                ]\n            },\n            \"top_category\": {\n                \"name\": \"-\",\n                \"total\": 0,\n                \"total_display\": \"Rp 0\"\n            },\n            \"daily_average\": {\n                \"label\": \"Average\",\n                \"amount\": 0,\n                \"amount_display\": \"Rp 0\"\n            }\n        }\n    }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "",
+      "type": "default"
+    }
+  ]
+}
