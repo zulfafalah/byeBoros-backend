@@ -204,16 +204,15 @@ func parseDate(val interface{}) time.Time {
 	if !ok {
 		return time.Time{}
 	}
+	// Excel stores dates in M/D/YYYY H:MM:SS (American format, month first)
+	// Prioritize M/D formats before D/M to avoid misinterpreting dates like 2/4/2026
 	formats := []string{
-		"02/01/2006 15:04:05", // DD/MM/YYYY
-		"2/1/2006 15:04:05",   // D/M/YYYY
-		"1/2/2006 15:04:05",   // M/D/YYYY
-		"01/02/2006 15:04:05", // MM/DD/YYYY
-		"2006-01-02 15:04:05", // YYYY-MM-DD
-		"02/01/2006 15:04",    // DD/MM/YYYY no secs
-		"2/1/2006 15:04",      // D/M/YYYY no secs
-		"1/2/2006 15:04",      // M/D/YYYY no secs
-		"2006-01-02 15:04",    // YYYY-MM-DD no secs
+		"1/2/2006 15:04:05",   // M/D/YYYY H:MM:SS (non-padded, e.g. 2/27/2026 1:02:19)
+		"01/02/2006 15:04:05", // MM/DD/YYYY HH:MM:SS (padded, e.g. 02/27/2026 01:02:19)
+		"1/2/2006 15:04",      // M/D/YYYY H:MM no secs
+		"01/02/2006 15:04",    // MM/DD/YYYY HH:MM no secs
+		"2006-01-02 15:04:05", // YYYY-MM-DD HH:MM:SS
+		"2006-01-02 15:04",    // YYYY-MM-DD HH:MM no secs
 		time.RFC3339,
 	}
 
