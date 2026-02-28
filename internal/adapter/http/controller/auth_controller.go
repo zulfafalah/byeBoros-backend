@@ -43,19 +43,44 @@ func (h *AuthController) GoogleCallback(c echo.Context) error {
 		})
 	}
 
-	user, token, err := h.authUsecase.HandleGoogleCallback(c.Request().Context(), code)
+	user, accessToken, refreshToken, err := h.authUsecase.HandleGoogleCallback(c.Request().Context(), code)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to authenticate: " + err.Error(),
 		})
 	}
 
-	// Redirect to frontend with token
+	// Redirect to frontend with access and refresh tokens
 	frontendURL := h.authUsecase.GetFrontendURL()
-	redirectURL := frontendURL + "?token=" + token
+	redirectURL := frontendURL + "?token=" + accessToken + "&refresh_token=" + refreshToken
 	_ = user // user info is encoded in the JWT
 
 	return c.Redirect(http.StatusTemporaryRedirect, redirectURL)
+}
+
+// RefreshToken issues a new access token and refresh token given a valid refresh token
+func (h *AuthController) RefreshToken(c echo.Context) error {
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := c.Bind(&body); err != nil || body.RefreshToken == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "refresh_token is required",
+		})
+	}
+
+	accessToken, refreshToken, err := h.authUsecase.RefreshToken(body.RefreshToken)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Invalid or expired refresh token: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	})
 }
 
 // GetMe returns the currently authenticated user

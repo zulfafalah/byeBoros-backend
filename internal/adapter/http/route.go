@@ -22,6 +22,7 @@ func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionC
 	auth := e.Group("/auth")
 	auth.GET("/google/login", authCtrl.GoogleLogin)
 	auth.GET("/google/callback", authCtrl.GoogleCallback)
+	auth.POST("/refresh", authCtrl.RefreshToken)
 
 	// Protected routes
 	api := e.Group("/api")

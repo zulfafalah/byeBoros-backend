@@ -25,9 +25,10 @@ type AuthUsecase struct {
 
 // JWTClaims represents the custom JWT claims
 type JWTClaims struct {
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Picture string `json:"picture"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	Picture   string `json:"picture"`
+	TokenType string `json:"token_type"` // "access" or "refresh"
 	jwt.RegisteredClaims
 }
 
@@ -57,26 +58,32 @@ func (u *AuthUsecase) GetGoogleLoginURL(state string) string {
 }
 
 // HandleGoogleCallback exchanges the auth code for a token and fetches user info
-func (u *AuthUsecase) HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, error) {
+func (u *AuthUsecase) HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, string, error) {
 	// Exchange authorization code for token
 	token, err := u.oauthConfig.Exchange(ctx, code)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to exchange token: %w", err)
+		return nil, "", "", fmt.Errorf("failed to exchange token: %w", err)
 	}
 
 	// Fetch user info from Google
 	user, err := u.fetchGoogleUser(token.AccessToken)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch user info: %w", err)
+		return nil, "", "", fmt.Errorf("failed to fetch user info: %w", err)
 	}
 
-	// Generate JWT
-	jwtToken, err := u.GenerateJWT(user)
+	// Generate access JWT (7 days)
+	accessToken, err := u.GenerateJWT(user)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate JWT: %w", err)
+		return nil, "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	return user, jwtToken, nil
+	// Generate refresh token (6 months)
+	refreshToken, err := u.GenerateRefreshToken(user)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	return user, accessToken, refreshToken, nil
 }
 
 // fetchGoogleUser fetches the user profile from Google's userinfo API
@@ -109,20 +116,68 @@ func (u *AuthUsecase) fetchGoogleUser(accessToken string) (*model.User, error) {
 	}, nil
 }
 
-// GenerateJWT generates a JWT token for the given user
+// GenerateJWT generates an access JWT token (valid for 7 days) for the given user
 func (u *AuthUsecase) GenerateJWT(user *model.User) (string, error) {
 	claims := JWTClaims{
-		Email:   user.Email,
-		Name:    user.Name,
-		Picture: user.Picture,
+		Email:     user.Email,
+		Name:      user.Name,
+		Picture:   user.Picture,
+		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(u.jwtSecret)
+}
+
+// GenerateRefreshToken generates a refresh JWT token (valid for 6 months) for the given user
+func (u *AuthUsecase) GenerateRefreshToken(user *model.User) (string, error) {
+	claims := JWTClaims{
+		Email:     user.Email,
+		Name:      user.Name,
+		Picture:   user.Picture,
+		TokenType: "refresh",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(180 * 24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(u.jwtSecret)
+}
+
+// RefreshToken validates a refresh token and issues a new access token + refresh token
+func (u *AuthUsecase) RefreshToken(refreshTokenString string) (string, string, error) {
+	claims, err := u.ValidateJWT(refreshTokenString)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid refresh token: %w", err)
+	}
+
+	if claims.TokenType != "refresh" {
+		return "", "", fmt.Errorf("token is not a refresh token")
+	}
+
+	user := &model.User{
+		Email:   claims.Email,
+		Name:    claims.Name,
+		Picture: claims.Picture,
+	}
+
+	newAccessToken, err := u.GenerateJWT(user)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	newRefreshToken, err := u.GenerateRefreshToken(user)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	return newAccessToken, newRefreshToken, nil
 }
 
 // ValidateJWT validates a JWT token and returns the claims
