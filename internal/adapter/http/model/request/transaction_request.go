@@ -1,5 +1,20 @@
 package request
 
+import (
+	"fmt"
+	"time"
+)
+
+// ValidateTransactionAt validates that transaction_at follows the format d/MM/yyyy H:mm:ss
+// e.g. 27/02/2026 1:02:19 — day first, then month (not US M/d/yyyy).
+func ValidateTransactionAt(transactionAt string) error {
+	_, err := time.Parse("2/1/2006 15:4:5", transactionAt)
+	if err != nil {
+		return fmt.Errorf("transaction_at must use format d/MM/yyyy H:mm:ss (e.g. 27/02/2026 1:02:19)")
+	}
+	return nil
+}
+
 // IncomeTransactionRequest represents the payload for adding an income transaction
 type IncomeTransactionRequest struct {
 	Description   string  `json:"description" validate:"required"`

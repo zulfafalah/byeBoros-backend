@@ -49,6 +49,12 @@ func (h *TransactionController) AddIncomeTransaction(c echo.Context) error {
 		})
 	}
 
+	if err := request.ValidateTransactionAt(req.TransactionAt); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
 	if req.Amount <= 0 {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "amount must be greater than 0",
@@ -96,6 +102,12 @@ func (h *TransactionController) AddExpenseTransaction(c echo.Context) error {
 	if req.Description == "" || req.Category == "" || req.TransactionAt == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "description, category, and transaction_at are required",
+		})
+	}
+
+	if err := request.ValidateTransactionAt(req.TransactionAt); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
 		})
 	}
 
@@ -158,6 +170,12 @@ func (h *TransactionController) UpdateTransaction(c echo.Context) error {
 	if req.Description == "" || req.Category == "" || req.TransactionAt == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "description, category, and transaction_at are required",
+		})
+	}
+
+	if err := request.ValidateTransactionAt(req.TransactionAt); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
 		})
 	}
 
