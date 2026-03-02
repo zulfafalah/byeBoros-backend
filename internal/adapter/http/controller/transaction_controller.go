@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"time"
 
 	"byeboros-backend/internal/adapter/http/model/request"
 	"byeboros-backend/internal/usecase"
@@ -268,7 +269,22 @@ func (h *TransactionController) GetAnalysis(c echo.Context) error {
 		})
 	}
 
-	data, err := h.transactionUsecase.GetAnalysis(spreadsheetID, sheetName, period)
+	// Get optional date param (only applicable when period=Day)
+	date := c.QueryParam("date")
+	if date != "" {
+		if period != "Day" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "date param is only supported when period=Day",
+			})
+		}
+		if _, err := time.Parse("2006-01-02", date); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "date must be in YYYY-MM-DD format (e.g. 2026-03-01)",
+			})
+		}
+	}
+
+	data, err := h.transactionUsecase.GetAnalysis(spreadsheetID, sheetName, period, date)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": "Failed to fetch analysis: " + err.Error(),

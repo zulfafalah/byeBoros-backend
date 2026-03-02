@@ -478,7 +478,12 @@ func getDaysInPeriod(period string) float64 {
 }
 
 // GetAnalysis fetches the financial analysis data
-func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string, period string) (*response.AnalysisResponse, error) {
+func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string, period string, date string) (*response.AnalysisResponse, error) {
+	// When period=Day and a specific date is provided, filter raw transactions
+	if period == "Day" && date != "" {
+		return u.getAnalysisForDate(spreadsheetID, sheetName, date)
+	}
+
 	// Get sheet names based on period
 	sheetNames := getSheetNamesForPeriod(sheetName, period)
 
@@ -573,6 +578,108 @@ func (u *TransactionUsecase) GetAnalysis(spreadsheetID string, sheetName string,
 	return resp, nil
 }
 
+// getAnalysisForDate fetches and filters transactions by a specific date (period=Day with date param).
+func (u *TransactionUsecase) getAnalysisForDate(spreadsheetID string, defaultSheetName string, date string) (*response.AnalysisResponse, error) {
+	parsedDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return nil, fmt.Errorf("invalid date format: %w", err)
+	}
+
+	// Determine sheet name from the month of the given date
+	sheetName := getIndonesianMonthName(int(parsedDate.Month()))
+	if sheetName == "" {
+		sheetName = defaultSheetName
+	}
+
+	ranges := []string{
+		sheetName + "!P2:T", // 0: expense budget categories (Nama Kategori, Sub Kategori, Budget, Alokasi, Sisa)
+		sheetName + "!A2:G", // 1: expense transactions
+		sheetName + "!I2:N", // 2: income transactions
+		"Master Data!H4:H",  // 3: master income categories
+	}
+
+	valueRanges, err := u.sheetRepo.BatchGetValues(spreadsheetID, ranges)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch data for date %s: %w", date, err)
+	}
+
+	getVal := func(idx int) [][]interface{} {
+		if len(valueRanges) > idx && valueRanges[idx] != nil && valueRanges[idx].Values != nil {
+			return valueRanges[idx].Values
+		}
+		return [][]interface{}{}
+	}
+
+	// Filter expense rows (A2:G) by date — date is column F (index 5)
+	var filteredExpense [][]interface{}
+	for _, row := range getVal(1) {
+		if len(row) < 6 {
+			continue
+		}
+		t := parseDate(row[5])
+		if !t.IsZero() && t.Format("2006-01-02") == date {
+			filteredExpense = append(filteredExpense, row)
+		}
+	}
+
+	// Filter income rows (I2:N) by date — date is column M (index 4 within range)
+	var filteredIncome [][]interface{}
+	for _, row := range getVal(2) {
+		if len(row) < 5 {
+			continue
+		}
+		t := parseDate(row[4])
+		if !t.IsZero() && t.Format("2006-01-02") == date {
+			filteredIncome = append(filteredIncome, row)
+		}
+	}
+
+	// Build sub_category_name → date-filtered amount from A2:G (column B = sub_category / description)
+	subCatAmt := make(map[string]float64)
+	for _, row := range filteredExpense {
+		if len(row) < 4 {
+			continue
+		}
+		subCat := strings.TrimSpace(fmt.Sprintf("%v", row[1]))
+		amt := parseAmount(row[3])
+		if subCat != "" {
+			subCatAmt[subCat] += amt
+		}
+	}
+
+	// Synthesize P2:T replacing the Alokasi column (index 3) with the date-filtered amounts.
+	// This lets getExpenseAnalysis produce the full subcategory structure with correct per-date amounts.
+	p2t := getVal(0)
+	syntheticP2T := make([][]interface{}, len(p2t))
+	for i, row := range p2t {
+		newRow := make([]interface{}, len(row))
+		copy(newRow, row)
+		for len(newRow) <= 3 {
+			newRow = append(newRow, nil)
+		}
+		subCatName := strings.TrimSpace(fmt.Sprintf("%v", newRow[1]))
+		newRow[3] = subCatAmt[subCatName] // replace Alokasi with date-filtered amount
+		syntheticP2T[i] = newRow
+	}
+
+	// Reuse existing builders — response structure is now identical to Month / other periods
+	periodLabel := parsedDate.Format("Jan 2, 2006")
+
+	expenseData := u.getExpenseAnalysis(nil, syntheticP2T, filteredExpense, "Day")
+	expenseData.PeriodLabel = periodLabel
+
+	incomeData := u.getIncomeAnalysis(nil, filteredIncome, getVal(3), "Day")
+	incomeData.PeriodLabel = periodLabel
+
+	return &response.AnalysisResponse{
+		Status: "success",
+		Data: response.AnalysisData{
+			Expense: expenseData,
+			Income:  incomeData,
+		},
+	}, nil
+}
+
 func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}, period string) response.AnalysisExpenseData {
 	var totalSpent float64
 	if len(aa2) > 0 && len(aa2[0]) > 0 {
@@ -631,12 +738,31 @@ func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}, p
 		totalSpent = expCatTotal
 	}
 
+	// Assign percentages using the largest remainder method so they always sum to 100%.
+	if expCatTotal > 0 {
+		type remainder struct {
+			idx  int
+			frac float64
+		}
+		rem := make([]remainder, len(expCats))
+		sumPct := 0
+		for i, c := range expCats {
+			exact := (c.Amount / expCatTotal) * 100
+			floor := int(exact)
+			expCats[i].Percent = floor
+			sumPct += floor
+			rem[i] = remainder{i, exact - float64(floor)}
+		}
+		toDistribute := 100 - sumPct
+		sort.SliceStable(rem, func(i, j int) bool { return rem[i].frac > rem[j].frac })
+		for k := 0; k < toDistribute && k < len(rem); k++ {
+			expCats[rem[k].idx].Percent++
+		}
+	}
+
 	var topExpCat response.AnalysisTopCategory
 	var maxExp float64
-	for i, c := range expCats {
-		if expCatTotal > 0 {
-			expCats[i].Percent = int((c.Amount / expCatTotal) * 100)
-		}
+	for _, c := range expCats {
 		if c.Amount >= maxExp && c.Amount > 0 {
 			maxExp = c.Amount
 			topExpCat = response.AnalysisTopCategory{
@@ -787,12 +913,31 @@ func (u *TransactionUsecase) getIncomeAnalysis(ad2, incCatsData, masterIncData [
 		totalIncome = incCatTotal
 	}
 
+	// Assign percentages using the largest remainder method so they always sum to 100%.
+	if incCatTotal > 0 {
+		type remainder struct {
+			idx  int
+			frac float64
+		}
+		rem := make([]remainder, len(incCats))
+		sumPct := 0
+		for i, c := range incCats {
+			exact := (c.Amount / incCatTotal) * 100
+			floor := int(exact)
+			incCats[i].Percent = floor
+			sumPct += floor
+			rem[i] = remainder{i, exact - float64(floor)}
+		}
+		toDistribute := 100 - sumPct
+		sort.SliceStable(rem, func(i, j int) bool { return rem[i].frac > rem[j].frac })
+		for k := 0; k < toDistribute && k < len(rem); k++ {
+			incCats[rem[k].idx].Percent++
+		}
+	}
+
 	var topIncCat response.AnalysisTopCategory
 	var maxInc float64
-	for i, c := range incCats {
-		if incCatTotal > 0 {
-			incCats[i].Percent = int((c.Amount / incCatTotal) * 100)
-		}
+	for _, c := range incCats {
 		if c.Amount >= maxInc && c.Amount > 0 {
 			maxInc = c.Amount
 			topIncCat = response.AnalysisTopCategory{
