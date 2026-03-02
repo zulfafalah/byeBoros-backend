@@ -776,7 +776,12 @@ func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}, p
 		topExpCat = response.AnalysisTopCategory{Name: "-", TotalDisplay: "Rp 0"}
 	}
 
-	priorityMap := make(map[string]float64)
+	// Pre-initialize all three priority levels so they always appear in the response
+	priorityMap := map[string]float64{
+		"high":   0,
+		"medium": 0,
+		"low":    0,
+	}
 	for i, row := range a2g {
 		if i == 0 { // Skip header
 			headerVal := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
@@ -789,37 +794,37 @@ func (u *TransactionUsecase) getExpenseAnalysis(aa2, p2t, a2g [][]interface{}, p
 		}
 		priStr := strings.TrimSpace(fmt.Sprintf("%v", row[2])) // C is index 2
 		amtF := parseAmount(row[3])                            // D is index 3
-		if priStr != "" {
-			priorityMap[priStr] += amtF
+		// Normalize Indonesian and English priority labels to canonical keys
+		var canonicalKey string
+		switch strings.ToLower(priStr) {
+		case "tinggi", "high":
+			canonicalKey = "high"
+		case "sedang", "medium":
+			canonicalKey = "medium"
+		case "rendah", "low":
+			canonicalKey = "low"
+		}
+		if canonicalKey != "" {
+			priorityMap[canonicalKey] += amtF
 		}
 	}
 
+	priorityOrder := []string{"high", "medium", "low"}
+	priorityLabels := map[string]string{
+		"high":   "High Priority",
+		"medium": "Medium Priority",
+		"low":    "Low Priority",
+	}
 	var priDist []response.AnalysisPriorityDistribution
-	for pri, amt := range priorityMap {
-		lvl := "other"
-		lbl := pri
-		if strings.EqualFold(pri, "tinggi") {
-			lvl = "high"
-			lbl = "High Priority"
-		} else if strings.EqualFold(pri, "sedang") {
-			lvl = "medium"
-			lbl = "Medium Priority"
-		} else if strings.EqualFold(pri, "rendah") {
-			lvl = "low"
-			lbl = "Low Priority"
-		}
+	for _, key := range priorityOrder {
+		amt := priorityMap[key]
 		priDist = append(priDist, response.AnalysisPriorityDistribution{
-			Level:         lvl,
-			Label:         lbl,
+			Level:         key,
+			Label:         priorityLabels[key],
 			Amount:        amt,
 			AmountDisplay: strings.Replace(formatAmount(amt, false), "-", "", 1),
 		})
 	}
-	sort.SliceStable(priDist, func(i, j int) bool {
-		order := map[string]int{"high": 1, "medium": 2, "low": 3, "other": 4}
-		return order[priDist[i].Level] < order[priDist[j].Level]
-	})
-
 	daysDivider := getDaysInPeriod(period)
 	if daysDivider == 0 {
 		daysDivider = 1
