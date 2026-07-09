@@ -13,3 +13,9 @@ services:
     volumes:
       - ./service_account.json:/app/service_account.json:ro
     restart: unless-stopped
+
+networks:
+  default:
+    external: true
+    name: npm-network
+    
