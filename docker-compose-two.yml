@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  byeboros-backend:
+  byeboros-backend-2:
     build:
       context: .
       dockerfile: Dockerfile
