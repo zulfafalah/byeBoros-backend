@@ -2,12 +2,14 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"byeboros-backend/config"
 	apphttp "byeboros-backend/internal/adapter/http"
 	"byeboros-backend/internal/adapter/http/controller"
 	"byeboros-backend/internal/adapter/repository"
 	"byeboros-backend/internal/infrastructure/gsheet"
+	"byeboros-backend/internal/infrastructure/stt"
 	"byeboros-backend/internal/usecase"
 
 	"github.com/labstack/echo/v4"
@@ -31,10 +33,14 @@ func main() {
 	transactionUsecase := usecase.NewTransactionUsecase(sheetRepo)
 	categoryUsecase := usecase.NewCategoryUsecase(sheetRepo)
 
+	sttClient := stt.NewClient(cfg.STTURL, cfg.STTAPIKey, cfg.STTLanguage, time.Duration(cfg.STTTimeoutSeconds)*time.Second)
+	voiceUsecase := usecase.NewVoiceUsecase(cfg.STTEnabled, sttClient, categoryUsecase, transactionUsecase)
+
 	// Controllers
 	authController := controller.NewAuthController(authUsecase)
 	transactionController := controller.NewTransactionController(transactionUsecase)
 	categoryController := controller.NewCategoryController(categoryUsecase)
+	voiceController := controller.NewVoiceController(voiceUsecase)
 
 	// Setup Echo
 	e := echo.New()
@@ -50,7 +56,7 @@ func main() {
 	}))
 
 	// Register routes
-	apphttp.SetupRoutes(e, authController, transactionController, categoryController, authUsecase)
+	apphttp.SetupRoutes(e, authController, transactionController, categoryController, voiceController, authUsecase)
 
 	// Start server
 	log.Printf("Server starting on port %s", cfg.Port)

@@ -43,3 +43,48 @@ Go backend service using Echo framework with Google OAuth login and Google Sheet
    ```bash
    make run
    ```
+
+## Voice transaction entry (STT)
+
+Record audio in the frontend, send it to the backend, which transcribes it with a
+self-hosted [whisper.cpp](https://github.com/ggml-org/whisper.cpp) server and
+parses the text into a transaction.
+
+- `POST /api/voice/transcribe` — STT + parse only, returns structured fields.
+- `POST /api/voice/transaction` — STT + parse + **save** the transaction.
+
+Both take multipart form-data with the audio in the `file` field (16 kHz mono WAV,
+max 5 MB) and the usual auth headers (`Authorization`, `X-Spreadsheet-ID`,
+`X-Sheet-Name`).
+
+### Run the STT sidecar
+
+The `whisper-stt` service is built from source (`Dockerfile.stt`) so it works on
+arm64 as well as amd64 (the published whisper.cpp image is amd64-only).
+
+```bash
+make stt-model   # downloads models/ggml-base.bin (~142MB)
+make stt-up      # builds + starts the whisper-stt service on the npm-net network
+```
+
+Then set in `.env`:
+
+```
+STT_ENABLED=true
+STT_URL=http://whisper-stt:8080/inference
+STT_LANGUAGE=id
+```
+
+`STT_URL` is a full endpoint URL, so you can point it at any OpenAI-compatible
+provider instead (e.g. Groq: `https://api.groq.com/openai/v1/audio/transcriptions`
+with `STT_API_KEY`).
+
+### Parser
+
+The text → transaction parsing lives in `pkg/voice` (amounts, income/expense,
+relative dates like "kemarin", priorities, notes) and is unit-tested:
+
+```bash
+go test ./pkg/voice/
+```
+

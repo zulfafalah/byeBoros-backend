@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -17,6 +18,12 @@ type Config struct {
 	JWTSecret            string
 	FrontendURL          string
 	AllowedOrigins       []string
+
+	STTEnabled        bool
+	STTURL            string
+	STTAPIKey         string
+	STTLanguage       string
+	STTTimeoutSeconds int
 }
 
 func LoadConfig() *Config {
@@ -34,6 +41,12 @@ func LoadConfig() *Config {
 		JWTSecret:            getEnv("JWT_SECRET", "secret"),
 		FrontendURL:          getEnv("FRONTEND_URL", "http://localhost:3000"),
 		AllowedOrigins:       strings.Split(getEnv("ALLOWED_ORIGINS", "http://localhost:3000"), ","),
+
+		STTEnabled:        getEnvBool("STT_ENABLED", false),
+		STTURL:            getEnv("STT_URL", "http://localhost:8081/inference"),
+		STTAPIKey:         getEnv("STT_API_KEY", ""),
+		STTLanguage:       getEnv("STT_LANGUAGE", "id"),
+		STTTimeoutSeconds: getEnvInt("STT_TIMEOUT_SECONDS", 30),
 	}
 }
 
@@ -42,4 +55,31 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
+}
+
+func getEnvInt(key string, fallback int) int {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }

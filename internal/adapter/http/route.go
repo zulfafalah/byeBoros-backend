@@ -9,7 +9,7 @@ import (
 )
 
 // SetupRoutes registers all application routes
-func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionCtrl *controller.TransactionController, categoryCtrl *controller.CategoryController, authUsecase *usecase.AuthUsecase) {
+func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionCtrl *controller.TransactionController, categoryCtrl *controller.CategoryController, voiceCtrl *controller.VoiceController, authUsecase *usecase.AuthUsecase) {
 	// Health check
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{
@@ -45,5 +45,9 @@ func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionC
 
 	// Analysis routes
 	api.GET("/analysis", transactionCtrl.GetAnalysis)
+
+	// Voice routes (STT + parse)
+	api.POST("/voice/transcribe", voiceCtrl.Transcribe)
+	api.POST("/voice/transaction", voiceCtrl.CreateTransaction)
 
 }

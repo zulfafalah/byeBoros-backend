@@ -5,3 +5,4 @@ tmp
 *.out
 *.tree
 service_account.json
+models/*.bin
