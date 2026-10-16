@@ -17,22 +17,28 @@ services:
     restart: unless-stopped
 
   # Self-hosted speech-to-text (whisper.cpp server, OpenAI-compatible).
+  # Built from source so it runs on arm64 as well as amd64.
   # Download the model first: make stt-model  (see Makefile)
   whisper-stt:
-    image: ghcr.io/ggml-org/whisper.cpp:main
+    build:
+      context: .
+      dockerfile: Dockerfile.stt
+    image: byeboros-whisper-stt
     container_name: byeboros-whisper
     volumes:
       - ./models:/models
-    working_dir: /tmp
     command:
-      - >-
-        /app/build/bin/whisper-server
-        --host 0.0.0.0
-        --port 8080
-        --model /models/ggml-base.bin
-        --inference-path /inference
-        --threads 4
-        --print-progress
+      - --model
+      - /models/ggml-base.bin
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --inference-path
+      - /inference
+      - --threads
+      - "4"
+      - --print-progress
     expose:
       - "8080"
     restart: unless-stopped

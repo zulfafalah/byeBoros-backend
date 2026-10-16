@@ -59,9 +59,12 @@ max 5 MB) and the usual auth headers (`Authorization`, `X-Spreadsheet-ID`,
 
 ### Run the STT sidecar
 
+The `whisper-stt` service is built from source (`Dockerfile.stt`) so it works on
+arm64 as well as amd64 (the published whisper.cpp image is amd64-only).
+
 ```bash
 make stt-model   # downloads models/ggml-base.bin (~142MB)
-make stt-up      # starts the whisper-stt service on the npm-net network
+make stt-up      # builds + starts the whisper-stt service on the npm-net network
 ```
 
 Then set in `.env`:

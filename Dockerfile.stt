@@ -1,0 +1,28 @@
+# Self-hosted whisper.cpp inference server.
+# Built from source so it works on arm64 (the published image is amd64-only).
+FROM debian:bookworm-slim AS build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git cmake build-essential ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git .
+
+RUN cmake -B build -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DWHISPER_BUILD_TESTS=OFF \
+    -DWHISPER_BUILD_EXAMPLES=ON
+RUN cmake --build build --config Release -j"$(nproc)" --target whisper-server
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /src/build/bin/whisper-server /usr/local/bin/whisper-server
+
+WORKDIR /models
+EXPOSE 8080
+ENTRYPOINT ["whisper-server"]
