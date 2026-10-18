@@ -79,7 +79,7 @@ func (h *VoiceController) Transcribe(c echo.Context) error {
 		return c.JSON(http.StatusBadGateway, map[string]string{"error": "transcription failed: " + err.Error()})
 	}
 
-	category, _, err := h.voiceUsecase.ResolveCategory(c.Request().Context(), spreadsheetID, sheetName, parsed)
+	category, _, err := h.voiceUsecase.Enrich(c.Request().Context(), spreadsheetID, sheetName, &parsed)
 	if err != nil {
 		category = ""
 	}

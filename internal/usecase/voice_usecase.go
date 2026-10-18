@@ -8,6 +8,7 @@ import (
 
 	"byeboros-backend/internal/adapter/http/model/request"
 	"byeboros-backend/internal/adapter/http/model/response"
+	"byeboros-backend/internal/infrastructure/llm"
 	"byeboros-backend/internal/infrastructure/stt"
 	"byeboros-backend/pkg/voice"
 )
@@ -15,28 +16,21 @@ import (
 // transactionAtLayout matches the d/MM/yyyy H:mm:ss format the sheet expects.
 const transactionAtLayout = "2/1/2006 15:4:5"
 
-// CategoryClassifier picks the best matching category for a transaction.
-// Implementations must be safe for concurrent use.
-type CategoryClassifier interface {
-	Enabled() bool
-	Classify(ctx context.Context, description, transcript string, candidates []string) (string, error)
-}
-
 // VoiceUsecase transcribes audio and turns it into a transaction.
 type VoiceUsecase struct {
 	enabled            bool
 	sttClient          *stt.Client
-	classifier         CategoryClassifier
+	analyzer           *llm.CategoryClassifier
 	categoryUsecase    *CategoryUsecase
 	transactionUsecase *TransactionUsecase
 }
 
-// NewVoiceUsecase wires the voice feature dependencies. classifier may be nil.
-func NewVoiceUsecase(enabled bool, sttClient *stt.Client, classifier CategoryClassifier, categoryUsecase *CategoryUsecase, transactionUsecase *TransactionUsecase) *VoiceUsecase {
+// NewVoiceUsecase wires the voice feature dependencies. analyzer may be nil.
+func NewVoiceUsecase(enabled bool, sttClient *stt.Client, analyzer *llm.CategoryClassifier, categoryUsecase *CategoryUsecase, transactionUsecase *TransactionUsecase) *VoiceUsecase {
 	return &VoiceUsecase{
 		enabled:            enabled,
 		sttClient:          sttClient,
-		classifier:         classifier,
+		analyzer:           analyzer,
 		categoryUsecase:    categoryUsecase,
 		transactionUsecase: transactionUsecase,
 	}
@@ -68,10 +62,11 @@ func (u *VoiceUsecase) Transcribe(ctx context.Context, filename string, audio []
 	return parsed, text, nil
 }
 
-// ResolveCategory returns the closest matching category for the description.
-// It asks the LLM classifier first (when configured) and falls back to keyword
-// matching on any error or when no category is found.
-func (u *VoiceUsecase) ResolveCategory(ctx context.Context, spreadsheetID, sheetName string, parsed voice.Parsed) (string, []string, error) {
+// Enrich fills in the category, title, priority and type of a parsed
+// transaction. When the LLM analyzer is configured it rewrites the description
+// into a clean title and picks the category/priority/type from the transcript;
+// any field it cannot resolve falls back to the keyword parser.
+func (u *VoiceUsecase) Enrich(ctx context.Context, spreadsheetID, sheetName string, parsed *voice.Parsed) (string, []string, error) {
 	var candidates []string
 	if parsed.Type == voice.TypeIncome {
 		cats, err := u.categoryUsecase.GetIncomeCategory(spreadsheetID, sheetName)
@@ -95,9 +90,20 @@ func (u *VoiceUsecase) ResolveCategory(ctx context.Context, spreadsheetID, sheet
 		}
 	}
 
-	if u.classifier != nil && u.classifier.Enabled() {
-		if match, err := u.classifier.Classify(ctx, parsed.Description, parsed.Raw, candidates); err == nil && match != "" {
-			return match, candidates, nil
+	if u.analyzer != nil && u.analyzer.Enabled() {
+		if analysis, err := u.analyzer.Analyze(ctx, parsed.Raw, parsed.Description, string(parsed.Type), candidates); err == nil {
+			if analysis.Title != "" {
+				parsed.Description = analysis.Title
+			}
+			if analysis.Priority != "" {
+				parsed.Priority = analysis.Priority
+			}
+			if parsed.Type == "" && analysis.Type != "" {
+				parsed.Type = voice.Type(analysis.Type)
+			}
+			if analysis.Category != "" {
+				return analysis.Category, candidates, nil
+			}
 		}
 	}
 
@@ -137,16 +143,16 @@ func (u *VoiceUsecase) CreateFromVoice(ctx context.Context, spreadsheetID, sheet
 	if parsed.Amount <= 0 {
 		return toResponse(parsed, text, ""), &VoiceValidationError{Message: "nominal tidak terdeteksi dari ucapan"}
 	}
-	if parsed.Description == "" {
-		return toResponse(parsed, text, ""), &VoiceValidationError{Message: "deskripsi tidak terdeteksi dari ucapan"}
-	}
 	if parsed.Type == "" {
 		parsed.Type = voice.TypeExpense
 	}
 
-	category, candidates, err := u.ResolveCategory(ctx, spreadsheetID, sheetName, parsed)
+	category, candidates, err := u.Enrich(ctx, spreadsheetID, sheetName, &parsed)
 	if err != nil {
 		return toResponse(parsed, text, ""), err
+	}
+	if parsed.Description == "" {
+		return toResponse(parsed, text, ""), &VoiceValidationError{Message: "deskripsi tidak terdeteksi dari ucapan"}
 	}
 	if category == "" {
 		return toResponse(parsed, text, ""), &VoiceValidationError{
