@@ -33,7 +33,7 @@ func main() {
 	transactionUsecase := usecase.NewTransactionUsecase(sheetRepo)
 	categoryUsecase := usecase.NewCategoryUsecase(sheetRepo)
 
-	sttClient := stt.NewClient(cfg.STTURL, cfg.STTAPIKey, cfg.STTLanguage, time.Duration(cfg.STTTimeoutSeconds)*time.Second)
+	sttClient := stt.NewClient(cfg.STTURL, cfg.STTAPIKey, cfg.STTModel, cfg.STTLanguage, cfg.STTPrompt, cfg.STTBeamSize, time.Duration(cfg.STTTimeoutSeconds)*time.Second)
 	voiceUsecase := usecase.NewVoiceUsecase(cfg.STTEnabled, sttClient, categoryUsecase, transactionUsecase)
 
 	// Controllers

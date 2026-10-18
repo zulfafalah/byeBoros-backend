@@ -29,15 +29,19 @@ services:
       - ./models:/models
     command:
       - --model
-      - /models/ggml-base.bin
+      - /models/${STT_MODEL_FILE:-ggml-large-v3-turbo-q5_0.bin}
       - --host
       - 0.0.0.0
       - --port
       - "8080"
       - --inference-path
       - /inference
+      - --language
+      - ${STT_LANGUAGE:-id}
+      - --beam-size
+      - "5"
       - --threads
-      - "4"
+      - "${STT_THREADS:-4}"
       - --print-progress
     expose:
       - "8080"

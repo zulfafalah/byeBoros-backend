@@ -1,4 +1,4 @@
-.PHONY: run build clean tidy dev stt-model stt-up
+.PHONY: run build clean tidy dev stt-model stt-model-small stt-model-base stt-up
 
 # Run the application
 run:
@@ -20,10 +20,20 @@ tidy:
 dev:
 	air -c .air.toml || go run cmd/web/main.go
 
-# Download the Whisper model used by the whisper-stt service (~142MB)
+# Whisper model used by the whisper-stt service (override STT_MODEL_FILE).
+# base < small < medium < large-v3-turbo-q5_0 (bigger = more accurate, slower).
+STT_MODEL_FILE ?= ggml-large-v3-turbo-q5_0.bin
+
+# Download the Whisper model (large-v3-turbo q5 ~547MB by default)
 stt-model:
 	mkdir -p models
-	curl -fL -o models/ggml-base.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+	curl -fL -o models/$(STT_MODEL_FILE) https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$(STT_MODEL_FILE)
+
+# Download lighter, faster models instead
+stt-model-small:
+	$(MAKE) stt-model STT_MODEL_FILE=ggml-small.bin
+stt-model-base:
+	$(MAKE) stt-model STT_MODEL_FILE=ggml-base.bin
 
 # Start only the self-hosted speech-to-text service
 stt-up:

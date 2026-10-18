@@ -22,9 +22,14 @@ type Config struct {
 	STTEnabled        bool
 	STTURL            string
 	STTAPIKey         string
+	STTModel          string
 	STTLanguage       string
+	STTPrompt         string
+	STTBeamSize       int
 	STTTimeoutSeconds int
 }
+
+const defaultSTTPrompt = "Catatan keuangan berbahasa Indonesia. Contoh nominal: sepuluh ribu, lima puluh ribu, seratus ribu, lima juta."
 
 func LoadConfig() *Config {
 	err := godotenv.Load()
@@ -45,7 +50,10 @@ func LoadConfig() *Config {
 		STTEnabled:        getEnvBool("STT_ENABLED", false),
 		STTURL:            getEnv("STT_URL", "http://localhost:8081/inference"),
 		STTAPIKey:         getEnv("STT_API_KEY", ""),
+		STTModel:          getEnv("STT_MODEL", ""),
 		STTLanguage:       getEnv("STT_LANGUAGE", "id"),
+		STTPrompt:         getEnv("STT_PROMPT", defaultSTTPrompt),
+		STTBeamSize:       getEnvInt("STT_BEAM_SIZE", 0),
 		STTTimeoutSeconds: getEnvInt("STT_TIMEOUT_SECONDS", 30),
 	}
 }
