@@ -15,19 +15,28 @@ import (
 // transactionAtLayout matches the d/MM/yyyy H:mm:ss format the sheet expects.
 const transactionAtLayout = "2/1/2006 15:4:5"
 
+// CategoryClassifier picks the best matching category for a transaction.
+// Implementations must be safe for concurrent use.
+type CategoryClassifier interface {
+	Enabled() bool
+	Classify(ctx context.Context, description, transcript string, candidates []string) (string, error)
+}
+
 // VoiceUsecase transcribes audio and turns it into a transaction.
 type VoiceUsecase struct {
 	enabled            bool
 	sttClient          *stt.Client
+	classifier         CategoryClassifier
 	categoryUsecase    *CategoryUsecase
 	transactionUsecase *TransactionUsecase
 }
 
-// NewVoiceUsecase wires the voice feature dependencies.
-func NewVoiceUsecase(enabled bool, sttClient *stt.Client, categoryUsecase *CategoryUsecase, transactionUsecase *TransactionUsecase) *VoiceUsecase {
+// NewVoiceUsecase wires the voice feature dependencies. classifier may be nil.
+func NewVoiceUsecase(enabled bool, sttClient *stt.Client, classifier CategoryClassifier, categoryUsecase *CategoryUsecase, transactionUsecase *TransactionUsecase) *VoiceUsecase {
 	return &VoiceUsecase{
 		enabled:            enabled,
 		sttClient:          sttClient,
+		classifier:         classifier,
 		categoryUsecase:    categoryUsecase,
 		transactionUsecase: transactionUsecase,
 	}
@@ -60,29 +69,38 @@ func (u *VoiceUsecase) Transcribe(ctx context.Context, filename string, audio []
 }
 
 // ResolveCategory returns the closest matching category for the description.
-func (u *VoiceUsecase) ResolveCategory(spreadsheetID, sheetName string, parsed voice.Parsed) (string, []string, error) {
+// It asks the LLM classifier first (when configured) and falls back to keyword
+// matching on any error or when no category is found.
+func (u *VoiceUsecase) ResolveCategory(ctx context.Context, spreadsheetID, sheetName string, parsed voice.Parsed) (string, []string, error) {
+	var candidates []string
 	if parsed.Type == voice.TypeIncome {
 		cats, err := u.categoryUsecase.GetIncomeCategory(spreadsheetID, sheetName)
 		if err != nil {
 			return "", nil, err
 		}
-		match, _ := voice.MatchCategory(parsed.Description, cats)
-		return match, cats, nil
+		candidates = cats
+	} else {
+		res, err := u.categoryUsecase.GetCategory(spreadsheetID, sheetName)
+		if err != nil {
+			return "", nil, err
+		}
+		candidates = make([]string, 0, len(res.Categories)*2)
+		for _, c := range res.Categories {
+			if c.SubCategoryName != "" {
+				candidates = append(candidates, c.SubCategoryName)
+			}
+			if c.CategoryName != "" {
+				candidates = append(candidates, c.CategoryName)
+			}
+		}
 	}
 
-	res, err := u.categoryUsecase.GetCategory(spreadsheetID, sheetName)
-	if err != nil {
-		return "", nil, err
-	}
-	candidates := make([]string, 0, len(res.Categories)*2)
-	for _, c := range res.Categories {
-		if c.SubCategoryName != "" {
-			candidates = append(candidates, c.SubCategoryName)
-		}
-		if c.CategoryName != "" {
-			candidates = append(candidates, c.CategoryName)
+	if u.classifier != nil && u.classifier.Enabled() {
+		if match, err := u.classifier.Classify(ctx, parsed.Description, parsed.Raw, candidates); err == nil && match != "" {
+			return match, candidates, nil
 		}
 	}
+
 	match, _ := voice.MatchCategory(parsed.Description, candidates)
 	return match, candidates, nil
 }
@@ -126,7 +144,7 @@ func (u *VoiceUsecase) CreateFromVoice(ctx context.Context, spreadsheetID, sheet
 		parsed.Type = voice.TypeExpense
 	}
 
-	category, candidates, err := u.ResolveCategory(spreadsheetID, sheetName, parsed)
+	category, candidates, err := u.ResolveCategory(ctx, spreadsheetID, sheetName, parsed)
 	if err != nil {
 		return toResponse(parsed, text, ""), err
 	}
