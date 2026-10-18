@@ -11,6 +11,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -18,20 +19,29 @@ import (
 type Client struct {
 	url      string
 	apiKey   string
+	model    string
 	language string
+	prompt   string
+	beamSize int
 	http     *http.Client
 }
 
 // NewClient builds a client. url is the full endpoint (e.g.
-// http://stt:8080/inference). apiKey is optional.
-func NewClient(url, apiKey, language string, timeout time.Duration) *Client {
+// http://stt:8080/inference for whisper.cpp or
+// https://api.groq.com/openai/v1/audio/transcriptions). model, apiKey, prompt
+// and beamSize are optional; beamSize <= 0 omits the field (for providers that
+// don't support it, e.g. Groq).
+func NewClient(url, apiKey, model, language, prompt string, beamSize int, timeout time.Duration) *Client {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
 	return &Client{
 		url:      url,
 		apiKey:   apiKey,
+		model:    model,
 		language: language,
+		prompt:   prompt,
+		beamSize: beamSize,
 		http:     &http.Client{Timeout: timeout},
 	}
 }
@@ -60,8 +70,18 @@ func (c *Client) Transcribe(ctx context.Context, filename string, audio []byte) 
 		return "", fmt.Errorf("write audio: %w", err)
 	}
 	_ = writer.WriteField("response_format", "json")
+	_ = writer.WriteField("temperature", "0")
+	if c.model != "" {
+		_ = writer.WriteField("model", c.model)
+	}
 	if c.language != "" {
 		_ = writer.WriteField("language", c.language)
+	}
+	if c.beamSize > 0 {
+		_ = writer.WriteField("beam_size", strconv.Itoa(c.beamSize))
+	}
+	if c.prompt != "" {
+		_ = writer.WriteField("prompt", c.prompt)
 	}
 	if err := writer.Close(); err != nil {
 		return "", fmt.Errorf("close multipart writer: %w", err)

@@ -46,9 +46,9 @@ Go backend service using Echo framework with Google OAuth login and Google Sheet
 
 ## Voice transaction entry (STT)
 
-Record audio in the frontend, send it to the backend, which transcribes it with a
-self-hosted [whisper.cpp](https://github.com/ggml-org/whisper.cpp) server and
-parses the text into a transaction.
+Record audio in the frontend, send it to the backend, which transcribes it with
+an OpenAI-compatible speech-to-text provider and parses the text into a
+transaction.
 
 - `POST /api/voice/transcribe` — STT + parse only, returns structured fields.
 - `POST /api/voice/transaction` — STT + parse + **save** the transaction.
@@ -57,27 +57,57 @@ Both take multipart form-data with the audio in the `file` field (16 kHz mono WA
 max 5 MB) and the usual auth headers (`Authorization`, `X-Spreadsheet-ID`,
 `X-Sheet-Name`).
 
-### Run the STT sidecar
+### Provider
 
-The `whisper-stt` service is built from source (`Dockerfile.stt`) so it works on
-arm64 as well as amd64 (the published whisper.cpp image is amd64-only).
+`STT_URL` is a full endpoint URL, so any OpenAI-compatible provider works.
 
-```bash
-make stt-model   # downloads models/ggml-base.bin (~142MB)
-make stt-up      # builds + starts the whisper-stt service on the npm-net network
+**Option A — Groq cloud (recommended, no local compute).** Fast and accurate
+(`whisper-large-v3-turbo`, ~12% WER on Indonesian):
+
+```
+STT_ENABLED=true
+STT_URL=https://api.groq.com/openai/v1/audio/transcriptions
+STT_API_KEY=your-groq-api-key
+STT_MODEL=whisper-large-v3-turbo
+STT_LANGUAGE=id
+STT_BEAM_SIZE=0            # Groq rejects beam_size
 ```
 
-Then set in `.env`:
+**Option B — self-hosted whisper.cpp.** Runs entirely on your machine; see
+below. Set `STT_MODEL=` empty and `STT_BEAM_SIZE=5`.
 
 ```
 STT_ENABLED=true
 STT_URL=http://whisper-stt:8080/inference
 STT_LANGUAGE=id
+STT_BEAM_SIZE=5
+STT_PROMPT=Catatan keuangan berbahasa Indonesia. Contoh nominal: sepuluh ribu, lima puluh ribu.
 ```
 
-`STT_URL` is a full endpoint URL, so you can point it at any OpenAI-compatible
-provider instead (e.g. Groq: `https://api.groq.com/openai/v1/audio/transcriptions`
-with `STT_API_KEY`).
+### Run the STT sidecar (self-hosted)
+
+The `whisper-stt` service is built from source (`Dockerfile.stt`) so it works on
+arm64 as well as amd64 (the published whisper.cpp image is amd64-only).
+
+```bash
+make stt-model   # downloads models/ggml-large-v3-turbo-q5_0.bin (~547MB)
+make stt-up      # builds + starts the whisper-stt service on the npm-net network
+```
+
+#### Model choice
+
+Accuracy on Indonesian (word error rate, lower is better; measured on a FLEURS
+sample):
+
+| model | WER | download | notes |
+| --- | --- | --- | --- |
+| `ggml-base.bin` | ~29% | 141 MB | fastest, but mis-parses numbers/words |
+| `ggml-small.bin` | ~17% | 465 MB | good balance |
+| `ggml-medium.bin` | ~16% | 1.5 GB | little gain over small |
+| `ggml-large-v3-turbo-q5_0.bin` | ~12% | 547 MB | **default**, best accuracy |
+
+Set `STT_MODEL_FILE` in `.env` and re-run `make stt-model stt-up`. Lighter
+shortcuts: `make stt-model-small` / `make stt-model-base`.
 
 ### Parser
 
