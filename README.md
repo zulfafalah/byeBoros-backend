@@ -109,6 +109,26 @@ sample):
 Set `STT_MODEL_FILE` in `.env` and re-run `make stt-model stt-up`. Lighter
 shortcuts: `make stt-model-small` / `make stt-model-base`.
 
+### Category classification (LLM)
+
+After transcription, the backend picks the transaction category. If `LLM_ENABLED`
+is set, it asks an OpenAI-compatible chat model to choose one of the user's
+categories from the spoken description (much better than keyword matching for
+phrases like "naik ojek"). On any error, timeout or invalid answer it falls back
+to the keyword matcher in `pkg/voice`.
+
+```
+LLM_ENABLED=true
+LLM_URL=https://api.groq.com/openai/v1/chat/completions
+LLM_API_KEY=            # empty falls back to STT_API_KEY
+LLM_MODEL=openai/gpt-oss-20b
+LLM_TIMEOUT_SECONDS=15
+```
+
+Any OpenAI-compatible `/chat/completions` endpoint works (Groq, OpenCode Zen,
+OpenAI, local vLLM, ...). Note that OpenCode Zen's `-free` models are restricted
+to the OpenCode app and cannot be called from a server.
+
 ### Parser
 
 The text → transaction parsing lives in `pkg/voice` (amounts, income/expense,

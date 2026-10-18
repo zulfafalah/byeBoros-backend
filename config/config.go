@@ -27,6 +27,12 @@ type Config struct {
 	STTPrompt         string
 	STTBeamSize       int
 	STTTimeoutSeconds int
+
+	LLMEnabled        bool
+	LLMURL            string
+	LLMAPIKey         string
+	LLMModel          string
+	LLMTimeoutSeconds int
 }
 
 const defaultSTTPrompt = "Catatan keuangan berbahasa Indonesia. Contoh nominal: sepuluh ribu, lima puluh ribu, seratus ribu, lima juta."
@@ -37,7 +43,7 @@ func LoadConfig() *Config {
 		log.Println("Warning: .env file not found, using environment variables")
 	}
 
-	return &Config{
+	cfg := &Config{
 		Port:                 getEnv("PORT", "8080"),
 		GoogleClientID:       getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret:   getEnv("GOOGLE_CLIENT_SECRET", ""),
@@ -55,7 +61,18 @@ func LoadConfig() *Config {
 		STTPrompt:         getEnv("STT_PROMPT", defaultSTTPrompt),
 		STTBeamSize:       getEnvInt("STT_BEAM_SIZE", 0),
 		STTTimeoutSeconds: getEnvInt("STT_TIMEOUT_SECONDS", 30),
+
+		LLMEnabled:        getEnvBool("LLM_ENABLED", false),
+		LLMURL:            getEnv("LLM_URL", ""),
+		LLMAPIKey:         getEnv("LLM_API_KEY", ""),
+		LLMModel:          getEnv("LLM_MODEL", ""),
+		LLMTimeoutSeconds: getEnvInt("LLM_TIMEOUT_SECONDS", 15),
 	}
+
+	if cfg.LLMAPIKey == "" {
+		cfg.LLMAPIKey = cfg.STTAPIKey
+	}
+	return cfg
 }
 
 func getEnv(key, fallback string) string {
