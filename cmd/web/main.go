@@ -35,11 +35,11 @@ func main() {
 	categoryUsecase := usecase.NewCategoryUsecase(sheetRepo)
 
 	sttClient := stt.NewClient(cfg.STTURL, cfg.STTAPIKey, cfg.STTModel, cfg.STTLanguage, cfg.STTPrompt, cfg.STTBeamSize, time.Duration(cfg.STTTimeoutSeconds)*time.Second)
-	var classifier usecase.CategoryClassifier
+	var analyzer *llm.CategoryClassifier
 	if cfg.LLMEnabled {
-		classifier = llm.NewCategoryClassifier(cfg.LLMURL, cfg.LLMAPIKey, cfg.LLMModel, time.Duration(cfg.LLMTimeoutSeconds)*time.Second)
+		analyzer = llm.NewCategoryClassifier(cfg.LLMURL, cfg.LLMAPIKey, cfg.LLMModel, time.Duration(cfg.LLMTimeoutSeconds)*time.Second)
 	}
-	voiceUsecase := usecase.NewVoiceUsecase(cfg.STTEnabled, sttClient, classifier, categoryUsecase, transactionUsecase)
+	voiceUsecase := usecase.NewVoiceUsecase(cfg.STTEnabled, sttClient, analyzer, categoryUsecase, transactionUsecase)
 
 	// Controllers
 	authController := controller.NewAuthController(authUsecase)

@@ -1,6 +1,6 @@
-// Package llm classifies free-form text with an OpenAI-compatible chat
-// completions endpoint. It is used to pick the best transaction category for a
-// spoken transaction.
+// Package llm analyzes spoken transactions with an OpenAI-compatible chat
+// completions endpoint: it produces a clean title, the best matching category,
+// the priority and the transaction type.
 package llm
 
 import (
@@ -14,8 +14,16 @@ import (
 	"time"
 )
 
-// CategoryClassifier asks a chat model to choose one of the candidate
-// categories for a transaction description.
+// Analysis is the structured result of analyzing a transcript.
+type Analysis struct {
+	Title    string `json:"title"`
+	Category string `json:"category"`
+	Priority string `json:"priority"`
+	Type     string `json:"type"`
+}
+
+// CategoryClassifier asks a chat model to summarize a transaction and choose
+// one of the candidate categories.
 type CategoryClassifier struct {
 	url    string
 	apiKey string
@@ -42,7 +50,15 @@ func (c *CategoryClassifier) Enabled() bool {
 	return c != nil && c.url != "" && c.model != ""
 }
 
-const systemPrompt = `Kamu mengklasifikasikan transaksi keuangan berbahasa Indonesia ke salah satu kategori yang disediakan. Balas HANYA JSON valid dengan format {"category":"<kategori>"}. Nilai category harus persis salah satu dari daftar kategori yang diberikan. Jika tidak yakin, pilih yang paling mendekati. Jangan menambahkan penjelasan.`
+const systemPrompt = `Kamu membantu mencatat transaksi keuangan berbahasa Indonesia.
+Balas HANYA JSON valid dengan format:
+{"title":"...","category":"...","priority":"high|medium|low","type":"expense|income"}
+Aturan:
+- "title": ringkasan singkat deskripsi transaksi dalam Bahasa Indonesia, huruf awal kapital. Rapikan nama barang/tempat (contoh: "indomart" -> "Indomart") dan jangan sertakan nominal uang.
+- "category": WAJIB persis salah satu dari daftar kategori yang diberikan. Jika tidak ada yang cocok, gunakan string kosong.
+- "priority": "high", "medium", atau "low" sesuai kata prioritas pada ucapan (mis. "prioritas tinggi" -> "high"); default "medium".
+- "type": "expense" untuk pengeluaran, "income" untuk pemasukan.
+Jangan menambahkan penjelasan apa pun.`
 
 type chatMessage struct {
 	Role    string `json:"role"`
@@ -67,23 +83,17 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
-type categoryPayload struct {
-	Category string `json:"category"`
-}
-
-// Classify returns the candidate category the model matches best. The returned
-// value is the original candidate string.
-func (c *CategoryClassifier) Classify(ctx context.Context, description, transcript string, candidates []string) (string, error) {
+// Analyze summarizes the transcript and fills in the category, priority and
+// type. transport/parse failures return an error; individual fields that cannot
+// be validated are left empty.
+func (c *CategoryClassifier) Analyze(ctx context.Context, transcript, description, typeHint string, candidates []string) (Analysis, error) {
 	if !c.Enabled() {
-		return "", fmt.Errorf("classifier is not enabled")
+		return Analysis{}, fmt.Errorf("classifier is not enabled")
 	}
 	candidates = trimCandidates(candidates)
-	if len(candidates) == 0 {
-		return "", fmt.Errorf("no candidate categories")
-	}
 
-	user := fmt.Sprintf("Deskripsi: %s\nTranskrip: %s\nKategori yang tersedia: %s",
-		description, transcript, strings.Join(candidates, ", "))
+	user := fmt.Sprintf("Ucapan: %s\nDeskripsi terdeteksi: %s\nJenis terdeteksi: %s\nKategori yang tersedia: %s",
+		transcript, description, typeHint, strings.Join(candidates, ", "))
 
 	body, err := json.Marshal(chatRequest{
 		Model: c.model,
@@ -95,12 +105,12 @@ func (c *CategoryClassifier) Classify(ctx context.Context, description, transcri
 		ResponseFormat: map[string]string{"type": "json_object"},
 	})
 	if err != nil {
-		return "", fmt.Errorf("encode request: %w", err)
+		return Analysis{}, fmt.Errorf("encode request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("build request: %w", err)
+		return Analysis{}, fmt.Errorf("build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
@@ -109,54 +119,75 @@ func (c *CategoryClassifier) Classify(ctx context.Context, description, transcri
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("llm request failed: %w", err)
+		return Analysis{}, fmt.Errorf("llm request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	payload, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return "", fmt.Errorf("read llm response: %w", err)
+		return Analysis{}, fmt.Errorf("read llm response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("llm returned %d: %s", resp.StatusCode, strings.TrimSpace(string(payload)))
+		return Analysis{}, fmt.Errorf("llm returned %d: %s", resp.StatusCode, strings.TrimSpace(string(payload)))
 	}
 
 	var parsed chatResponse
 	if err := json.Unmarshal(payload, &parsed); err != nil {
-		return "", fmt.Errorf("decode llm response: %w", err)
+		return Analysis{}, fmt.Errorf("decode llm response: %w", err)
 	}
 	if parsed.Error != nil {
-		return "", fmt.Errorf("llm error: %s", parsed.Error.Message)
+		return Analysis{}, fmt.Errorf("llm error: %s", parsed.Error.Message)
 	}
 	if len(parsed.Choices) == 0 {
-		return "", fmt.Errorf("llm returned no choices")
+		return Analysis{}, fmt.Errorf("llm returned no choices")
 	}
 
-	content := strings.TrimSpace(parsed.Choices[0].Message.Content)
-	category, err := parseCategory(content)
+	raw, err := parseAnalysis(parsed.Choices[0].Message.Content)
 	if err != nil {
-		return "", err
+		return Analysis{}, err
 	}
-	return matchCandidate(category, candidates)
+	return c.validate(raw, candidates), nil
 }
 
-// parseCategory extracts the category value from the model content, which is
-// expected to be a JSON object but may include surrounding prose or code fences.
-func parseCategory(content string) (string, error) {
+// parseAnalysis extracts the JSON object from the model content, which may be
+// wrapped in prose or code fences.
+func parseAnalysis(content string) (Analysis, error) {
 	content = strings.TrimSpace(content)
 	content = strings.Trim(content, "`")
-	if start := strings.Index(content, "{"); start >= 0 {
-		if end := strings.LastIndex(content, "}"); end > start {
-			var payload categoryPayload
-			if err := json.Unmarshal([]byte(content[start:end+1]), &payload); err == nil && strings.TrimSpace(payload.Category) != "" {
-				return strings.TrimSpace(payload.Category), nil
-			}
+	start := strings.Index(content, "{")
+	end := strings.LastIndex(content, "}")
+	if start < 0 || end <= start {
+		return Analysis{}, fmt.Errorf("llm content is not a JSON object")
+	}
+	var a Analysis
+	if err := json.Unmarshal([]byte(content[start:end+1]), &a); err != nil {
+		return Analysis{}, fmt.Errorf("decode llm content: %w", err)
+	}
+	a.Title = strings.TrimSpace(a.Title)
+	a.Category = strings.TrimSpace(a.Category)
+	a.Priority = strings.TrimSpace(a.Priority)
+	a.Type = strings.TrimSpace(a.Type)
+	return a, nil
+}
+
+// validate keeps only the fields that match the allowed values and maps the
+// category back to the original candidate string.
+func (c *CategoryClassifier) validate(a Analysis, candidates []string) Analysis {
+	out := Analysis{Title: a.Title}
+	if a.Category != "" {
+		if match, err := matchCandidate(a.Category, candidates); err == nil {
+			out.Category = match
 		}
 	}
-	if content == "" {
-		return "", fmt.Errorf("empty llm content")
+	switch strings.ToLower(a.Priority) {
+	case "high", "medium", "low":
+		out.Priority = strings.ToLower(a.Priority)
 	}
-	return content, nil
+	switch strings.ToLower(a.Type) {
+	case "income", "expense":
+		out.Type = strings.ToLower(a.Type)
+	}
+	return out
 }
 
 func trimCandidates(candidates []string) []string {
@@ -170,8 +201,12 @@ func trimCandidates(candidates []string) []string {
 }
 
 // matchCandidate maps the model answer back to the original candidate string,
-// tolerating case, whitespace and simple word-form differences.
+// tolerating case and simple word-form differences. An empty candidate list
+// yields an error so callers fall back to keyword matching.
 func matchCandidate(answer string, candidates []string) (string, error) {
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("no candidate categories")
+	}
 	answer = strings.TrimSpace(answer)
 	for _, c := range candidates {
 		if strings.EqualFold(c, answer) {
