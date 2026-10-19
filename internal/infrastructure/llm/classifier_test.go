@@ -16,6 +16,9 @@ func newTestClassifier(t *testing.T, handler http.HandlerFunc) *CategoryClassifi
 	return NewCategoryClassifier(srv.URL, "test-key", "test-model", 5*time.Second)
 }
 
+// refNow is the reference time stamped into prompts during tests.
+var refNow = time.Date(2026, time.April, 6, 14, 30, 0, 0, time.UTC)
+
 func writeContent(w http.ResponseWriter, content string) {
 	body, _ := json.Marshal(map[string]any{
 		"choices": []map[string]any{
@@ -31,10 +34,10 @@ func TestAnalyzeFull(t *testing.T) {
 		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
 			t.Errorf("authorization header = %q", got)
 		}
-		writeContent(w, `{"title":"Belanja susu dan rinso di Indomart","notes":"Belanja susu dan rinso di Indomart untuk stok bulan ini.","category":"Belanja","priority":"high","type":"expense"}`)
+		writeContent(w, `{"title":"Belanja susu dan rinso di Indomart","notes":"Belanja susu dan rinso di Indomart untuk stok bulan ini.","amount":44000,"transaction_at":"5/4/2026 09:15:00","category":"Belanja","priority":"high","type":"expense"}`)
 	})
 
-	got, err := c.Analyze(context.Background(), "belanja susu dan rinso ke indomart habis 44ribu", "susu dan rinso ke indomart", "expense", []string{"Makan", "Belanja", "Transport"})
+	got, err := c.Analyze(context.Background(), refNow, "belanja susu dan rinso ke indomart habis 44ribu", "susu dan rinso ke indomart", "expense", []string{"Makan", "Belanja", "Transport"})
 	if err != nil {
 		t.Fatalf("Analyze returned error: %v", err)
 	}
@@ -43,6 +46,12 @@ func TestAnalyzeFull(t *testing.T) {
 	}
 	if got.Notes != "Belanja susu dan rinso di Indomart untuk stok bulan ini." {
 		t.Fatalf("notes = %q", got.Notes)
+	}
+	if got.Amount != 44000 {
+		t.Fatalf("amount = %d, want 44000", got.Amount)
+	}
+	if got.TransactionAt != "5/4/2026 09:15:00" {
+		t.Fatalf("transaction_at = %q", got.TransactionAt)
 	}
 	if got.Category != "Belanja" {
 		t.Fatalf("category = %q", got.Category)
@@ -60,7 +69,7 @@ func TestAnalyzeExtractsJSONFromProse(t *testing.T) {
 		writeContent(w, "Berikut hasilnya:\n```json\n{\"title\":\"Naik ojek\",\"category\":\"transport\",\"priority\":\"low\",\"type\":\"expense\"}\n```")
 	})
 
-	got, err := c.Analyze(context.Background(), "naik ojek 20 ribu", "ojek", "expense", []string{"Makan", "Transport"})
+	got, err := c.Analyze(context.Background(), refNow, "naik ojek 20 ribu", "ojek", "expense", []string{"Makan", "Transport"})
 	if err != nil {
 		t.Fatalf("Analyze returned error: %v", err)
 	}
@@ -74,15 +83,18 @@ func TestAnalyzeExtractsJSONFromProse(t *testing.T) {
 
 func TestAnalyzeDropsInvalidFields(t *testing.T) {
 	c := newTestClassifier(t, func(w http.ResponseWriter, r *http.Request) {
-		writeContent(w, `{"title":"Makan siang","category":"Ngasal","priority":"super","type":"transfer"}`)
+		writeContent(w, `{"title":"Makan siang","amount":-5,"category":"Ngasal","priority":"super","type":"transfer"}`)
 	})
 
-	got, err := c.Analyze(context.Background(), "makan siang", "makan siang", "expense", []string{"Makan", "Transport"})
+	got, err := c.Analyze(context.Background(), refNow, "makan siang", "makan siang", "expense", []string{"Makan", "Transport"})
 	if err != nil {
 		t.Fatalf("Analyze returned error: %v", err)
 	}
 	if got.Title != "Makan siang" {
 		t.Fatalf("title = %q", got.Title)
+	}
+	if got.Amount != 0 {
+		t.Fatalf("non-positive amount should be dropped, got %d", got.Amount)
 	}
 	if got.Category != "" {
 		t.Fatalf("category should be dropped, got %q", got.Category)
@@ -101,7 +113,7 @@ func TestAnalyzeErrorStatus(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":{"message":"rate limited"}}`))
 	})
 
-	if _, err := c.Analyze(context.Background(), "x", "x", "expense", []string{"Makan"}); err == nil {
+	if _, err := c.Analyze(context.Background(), refNow, "x", "x", "expense", []string{"Makan"}); err == nil {
 		t.Fatal("expected error on non-2xx response")
 	}
 }
@@ -111,7 +123,7 @@ func TestAnalyzeDisabled(t *testing.T) {
 	if c.Enabled() {
 		t.Fatal("classifier should be disabled without url/model")
 	}
-	if _, err := c.Analyze(context.Background(), "x", "x", "expense", []string{"Makan"}); err == nil {
+	if _, err := c.Analyze(context.Background(), refNow, "x", "x", "expense", []string{"Makan"}); err == nil {
 		t.Fatal("expected error when disabled")
 	}
 }

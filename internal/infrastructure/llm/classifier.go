@@ -16,11 +16,13 @@ import (
 
 // Analysis is the structured result of analyzing a transcript.
 type Analysis struct {
-	Title    string `json:"title"`
-	Notes    string `json:"notes"`
-	Category string `json:"category"`
-	Priority string `json:"priority"`
-	Type     string `json:"type"`
+	Title         string `json:"title"`
+	Notes         string `json:"notes"`
+	Amount        int64  `json:"amount"`
+	TransactionAt string `json:"transaction_at"`
+	Category      string `json:"category"`
+	Priority      string `json:"priority"`
+	Type          string `json:"type"`
 }
 
 // CategoryClassifier asks a chat model to summarize a transaction and choose
@@ -53,10 +55,12 @@ func (c *CategoryClassifier) Enabled() bool {
 
 const systemPrompt = `Kamu membantu mencatat transaksi keuangan berbahasa Indonesia.
 Balas HANYA JSON valid dengan format:
-{"title":"...","notes":"...","category":"...","priority":"high|medium|low","type":"expense|income"}
+{"title":"...","notes":"...","amount":0,"transaction_at":"d/MM/yyyy HH:mm:ss","category":"...","priority":"high|medium|low","type":"expense|income"}
 Aturan:
 - "title": judul singkat transaksi (kira-kira maksimal 6 kata), huruf awal kapital. Rapikan nama barang/tempat (contoh: "indomart" -> "Indomart"). Jangan sertakan nominal uang.
 - "notes": jika ucapan berisi keterangan/detail tambahan atau kalimat panjang, tulis ulang menjadi satu kalimat yang rapi dan jelas (huruf awal kapital, ejaan dibetulkan). Jika tidak ada keterangan tambahan, gunakan string kosong.
+- "amount": total nominal transaksi dalam angka rupiah bulat, tanpa titik/koma, tanpa "Rp". Contoh: "44 ribu" -> 44000, "1,5 juta" -> 1500000. Jika tidak ada nominal yang disebut, gunakan 0.
+- "transaction_at": waktu transaksi format "d/MM/yyyy HH:mm:ss" (HARI dulu, lalu bulan; contoh 6/4/2026 14:30:05). Pakai "Waktu sekarang" pada pesan user sebagai acuan untuk menerjemahkan waktu relatif: "hari ini" -> hari ini, "kemarin" -> sehari sebelum waktu sekarang, "besok" -> sehari setelahnya, "tadi pagi/siang/malam" -> hari ini pada jam tersebut, "minggu lalu" -> 7 hari sebelum waktu sekarang, dan nama hari seperti "hari rabu kemarin" -> hari Rabu terakhir sebelum waktu sekarang. Jika ucapan tidak menyebut waktu, gunakan waktu sekarang.
 - "category": WAJIB persis salah satu dari daftar kategori yang diberikan. Jika tidak ada yang cocok, gunakan string kosong.
 - "priority": "high", "medium", atau "low" sesuai kata prioritas pada ucapan (mis. "prioritas tinggi" -> "high"); default "medium".
 - "type": "expense" untuk pengeluaran, "income" untuk pemasukan.
@@ -85,17 +89,23 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
-// Analyze summarizes the transcript and fills in the category, priority and
-// type. transport/parse failures return an error; individual fields that cannot
-// be validated are left empty.
-func (c *CategoryClassifier) Analyze(ctx context.Context, transcript, description, typeHint string, candidates []string) (Analysis, error) {
+// Analyze summarizes the transcript and fills in the amount, transaction time,
+// category, priority and type. now is the reference point for relative dates
+// (e.g. "kemarin", "hari rabu kemarin"). transport/parse failures return an
+// error; individual fields that cannot be validated are left empty.
+func (c *CategoryClassifier) Analyze(ctx context.Context, now time.Time, transcript, description, typeHint string, candidates []string) (Analysis, error) {
 	if !c.Enabled() {
 		return Analysis{}, fmt.Errorf("classifier is not enabled")
 	}
 	candidates = trimCandidates(candidates)
 
-	user := fmt.Sprintf("Ucapan: %s\nDeskripsi terdeteksi: %s\nJenis terdeteksi: %s\nKategori yang tersedia: %s",
-		transcript, description, typeHint, strings.Join(candidates, ", "))
+	if now.IsZero() {
+		now = time.Now()
+	}
+	now = now.In(jakartaLocation())
+
+	user := fmt.Sprintf("Waktu sekarang: %s (%s, WIB)\nUcapan: %s\nDeskripsi terdeteksi: %s\nJenis terdeteksi: %s\nKategori yang tersedia: %s",
+		now.Format("2/1/2006 15:4:5"), indonesianWeekday(now.Weekday()), transcript, description, typeHint, strings.Join(candidates, ", "))
 
 	body, err := json.Marshal(chatRequest{
 		Model: c.model,
@@ -167,6 +177,7 @@ func parseAnalysis(content string) (Analysis, error) {
 	}
 	a.Title = strings.TrimSpace(a.Title)
 	a.Notes = strings.TrimSpace(a.Notes)
+	a.TransactionAt = strings.TrimSpace(a.TransactionAt)
 	a.Category = strings.TrimSpace(a.Category)
 	a.Priority = strings.TrimSpace(a.Priority)
 	a.Type = strings.TrimSpace(a.Type)
@@ -176,7 +187,10 @@ func parseAnalysis(content string) (Analysis, error) {
 // validate keeps only the fields that match the allowed values and maps the
 // category back to the original candidate string.
 func (c *CategoryClassifier) validate(a Analysis, candidates []string) Analysis {
-	out := Analysis{Title: a.Title, Notes: a.Notes}
+	out := Analysis{Title: a.Title, Notes: a.Notes, TransactionAt: a.TransactionAt}
+	if a.Amount > 0 {
+		out.Amount = a.Amount
+	}
 	if a.Category != "" {
 		if match, err := matchCandidate(a.Category, candidates); err == nil {
 			out.Category = match
@@ -245,4 +259,18 @@ func tokensPrefixRelated(a, b string) bool {
 
 func isSeparator(r rune) bool {
 	return !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9') && r < 0x80
+}
+
+// jakartaLocation returns the Asia/Jakarta location, falling back to a fixed
+// UTC+7 zone when the tz database is unavailable.
+func jakartaLocation() *time.Location {
+	if loc, err := time.LoadLocation("Asia/Jakarta"); err == nil {
+		return loc
+	}
+	return time.FixedZone("WIB", 7*60*60)
+}
+
+// indonesianWeekday maps a Go weekday to its Indonesian name.
+func indonesianWeekday(d time.Weekday) string {
+	return [...]string{"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}[d]
 }
