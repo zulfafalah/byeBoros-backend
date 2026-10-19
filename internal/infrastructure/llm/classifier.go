@@ -17,6 +17,7 @@ import (
 // Analysis is the structured result of analyzing a transcript.
 type Analysis struct {
 	Title    string `json:"title"`
+	Notes    string `json:"notes"`
 	Category string `json:"category"`
 	Priority string `json:"priority"`
 	Type     string `json:"type"`
@@ -52,9 +53,10 @@ func (c *CategoryClassifier) Enabled() bool {
 
 const systemPrompt = `Kamu membantu mencatat transaksi keuangan berbahasa Indonesia.
 Balas HANYA JSON valid dengan format:
-{"title":"...","category":"...","priority":"high|medium|low","type":"expense|income"}
+{"title":"...","notes":"...","category":"...","priority":"high|medium|low","type":"expense|income"}
 Aturan:
-- "title": ringkasan singkat deskripsi transaksi dalam Bahasa Indonesia, huruf awal kapital. Rapikan nama barang/tempat (contoh: "indomart" -> "Indomart") dan jangan sertakan nominal uang.
+- "title": judul singkat transaksi (kira-kira maksimal 6 kata), huruf awal kapital. Rapikan nama barang/tempat (contoh: "indomart" -> "Indomart"). Jangan sertakan nominal uang.
+- "notes": jika ucapan berisi keterangan/detail tambahan atau kalimat panjang, tulis ulang menjadi satu kalimat yang rapi dan jelas (huruf awal kapital, ejaan dibetulkan). Jika tidak ada keterangan tambahan, gunakan string kosong.
 - "category": WAJIB persis salah satu dari daftar kategori yang diberikan. Jika tidak ada yang cocok, gunakan string kosong.
 - "priority": "high", "medium", atau "low" sesuai kata prioritas pada ucapan (mis. "prioritas tinggi" -> "high"); default "medium".
 - "type": "expense" untuk pengeluaran, "income" untuk pemasukan.
@@ -164,6 +166,7 @@ func parseAnalysis(content string) (Analysis, error) {
 		return Analysis{}, fmt.Errorf("decode llm content: %w", err)
 	}
 	a.Title = strings.TrimSpace(a.Title)
+	a.Notes = strings.TrimSpace(a.Notes)
 	a.Category = strings.TrimSpace(a.Category)
 	a.Priority = strings.TrimSpace(a.Priority)
 	a.Type = strings.TrimSpace(a.Type)
@@ -173,7 +176,7 @@ func parseAnalysis(content string) (Analysis, error) {
 // validate keeps only the fields that match the allowed values and maps the
 // category back to the original candidate string.
 func (c *CategoryClassifier) validate(a Analysis, candidates []string) Analysis {
-	out := Analysis{Title: a.Title}
+	out := Analysis{Title: a.Title, Notes: a.Notes}
 	if a.Category != "" {
 		if match, err := matchCandidate(a.Category, candidates); err == nil {
 			out.Category = match
