@@ -31,7 +31,7 @@ func TestAnalyzeFull(t *testing.T) {
 		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
 			t.Errorf("authorization header = %q", got)
 		}
-		writeContent(w, `{"title":"Belanja susu dan rinso di Indomart","category":"Belanja","priority":"high","type":"expense"}`)
+		writeContent(w, `{"title":"Belanja susu dan rinso di Indomart","notes":"Belanja susu dan rinso di Indomart untuk stok bulan ini.","category":"Belanja","priority":"high","type":"expense"}`)
 	})
 
 	got, err := c.Analyze(context.Background(), "belanja susu dan rinso ke indomart habis 44ribu", "susu dan rinso ke indomart", "expense", []string{"Makan", "Belanja", "Transport"})
@@ -40,6 +40,9 @@ func TestAnalyzeFull(t *testing.T) {
 	}
 	if got.Title != "Belanja susu dan rinso di Indomart" {
 		t.Fatalf("title = %q", got.Title)
+	}
+	if got.Notes != "Belanja susu dan rinso di Indomart untuk stok bulan ini." {
+		t.Fatalf("notes = %q", got.Notes)
 	}
 	if got.Category != "Belanja" {
 		t.Fatalf("category = %q", got.Category)

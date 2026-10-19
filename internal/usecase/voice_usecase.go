@@ -95,6 +95,9 @@ func (u *VoiceUsecase) Enrich(ctx context.Context, spreadsheetID, sheetName stri
 			if analysis.Title != "" {
 				parsed.Description = analysis.Title
 			}
+			if analysis.Notes != "" {
+				parsed.Notes = analysis.Notes
+			}
 			if analysis.Priority != "" {
 				parsed.Priority = analysis.Priority
 			}
