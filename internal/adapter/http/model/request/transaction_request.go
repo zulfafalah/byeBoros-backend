@@ -45,3 +45,9 @@ type UpdateTransactionRequest struct {
 	Notes         *string `json:"notes"`
 	TransactionAt string  `json:"transaction_at" validate:"required"`
 }
+
+// DeleteTransactionRequest represents the payload for deleting a transaction
+type DeleteTransactionRequest struct {
+	ID   string `json:"id" validate:"required"`
+	Type string `json:"type" validate:"required,oneof=income expense"`
+}

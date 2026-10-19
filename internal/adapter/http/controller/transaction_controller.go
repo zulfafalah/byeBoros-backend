@@ -200,6 +200,52 @@ func (h *TransactionController) UpdateTransaction(c echo.Context) error {
 	})
 }
 
+// DeleteTransaction handles DELETE /api/transaction
+func (h *TransactionController) DeleteTransaction(c echo.Context) error {
+	spreadsheetID, ok := c.Get("spreadsheet_id").(string)
+	if !ok || spreadsheetID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Spreadsheet ID not found in context",
+		})
+	}
+
+	sheetName, ok := c.Get("sheet_name").(string)
+	if !ok || sheetName == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Sheet name not found in context",
+		})
+	}
+
+	var req request.DeleteTransactionRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request payload: " + err.Error(),
+		})
+	}
+
+	if req.ID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "id is required",
+		})
+	}
+
+	if req.Type != "income" && req.Type != "expense" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "type must be either 'income' or 'expense'",
+		})
+	}
+
+	if err := h.transactionUsecase.DeleteTransaction(spreadsheetID, sheetName, req); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to delete transaction: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Transaction deleted successfully",
+	})
+}
+
 // ListTransaction returns the list of transactions with optional date and category filters
 func (h *TransactionController) ListTransaction(c echo.Context) error {
 	spreadsheetID, ok := c.Get("spreadsheet_id").(string)
