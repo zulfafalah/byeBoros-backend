@@ -16,6 +16,33 @@ import (
 // transactionAtLayout matches the d/MM/yyyy H:mm:ss format the sheet expects.
 const transactionAtLayout = "2/1/2006 15:4:5"
 
+// transactionAtLayouts are accepted shapes for the LLM-provided transaction
+// time, in case the model omits seconds or uses an ISO-like form.
+var transactionAtLayouts = []string{
+	"2/1/2006 15:4:5",
+	"02/01/2006 15:04:05",
+	"2/1/2006 15:4",
+	"02/01/2006 15:04",
+	"2006-01-02 15:04:05",
+	"2006-01-02T15:04:05",
+	"2006-01-02 15:04",
+	"2006-01-02",
+}
+
+// parseTransactionAt parses a transaction timestamp returned by the LLM.
+func parseTransactionAt(s string) (time.Time, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range transactionAtLayouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
 // VoiceUsecase transcribes audio and turns it into a transaction.
 type VoiceUsecase struct {
 	enabled            bool
@@ -91,7 +118,7 @@ func (u *VoiceUsecase) Enrich(ctx context.Context, spreadsheetID, sheetName stri
 	}
 
 	if u.analyzer != nil && u.analyzer.Enabled() {
-		if analysis, err := u.analyzer.Analyze(ctx, parsed.Raw, parsed.Description, string(parsed.Type), candidates); err == nil {
+		if analysis, err := u.analyzer.Analyze(ctx, time.Now(), parsed.Raw, parsed.Description, string(parsed.Type), candidates); err == nil {
 			if analysis.Title != "" {
 				parsed.Description = analysis.Title
 			}
@@ -100,6 +127,15 @@ func (u *VoiceUsecase) Enrich(ctx context.Context, spreadsheetID, sheetName stri
 			}
 			if analysis.Priority != "" {
 				parsed.Priority = analysis.Priority
+			}
+			if analysis.Amount > 0 {
+				parsed.Amount = analysis.Amount
+			}
+			if analysis.TransactionAt != "" {
+				if t, ok := parseTransactionAt(analysis.TransactionAt); ok {
+					parsed.Date = t
+					parsed.DateSet = true
+				}
 			}
 			if parsed.Type == "" && analysis.Type != "" {
 				parsed.Type = voice.Type(analysis.Type)
@@ -143,9 +179,6 @@ func (u *VoiceUsecase) CreateFromVoice(ctx context.Context, spreadsheetID, sheet
 		return response.VoiceTransactionResponse{}, err
 	}
 
-	if parsed.Amount <= 0 {
-		return toResponse(parsed, text, ""), &VoiceValidationError{Message: "nominal tidak terdeteksi dari ucapan"}
-	}
 	if parsed.Type == "" {
 		parsed.Type = voice.TypeExpense
 	}
@@ -153,6 +186,9 @@ func (u *VoiceUsecase) CreateFromVoice(ctx context.Context, spreadsheetID, sheet
 	category, candidates, err := u.Enrich(ctx, spreadsheetID, sheetName, &parsed)
 	if err != nil {
 		return toResponse(parsed, text, ""), err
+	}
+	if parsed.Amount <= 0 {
+		return toResponse(parsed, text, ""), &VoiceValidationError{Message: "nominal tidak terdeteksi dari ucapan"}
 	}
 	if parsed.Description == "" {
 		return toResponse(parsed, text, ""), &VoiceValidationError{Message: "deskripsi tidak terdeteksi dari ucapan"}
