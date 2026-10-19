@@ -362,6 +362,51 @@ func (u *TransactionUsecase) UpdateTransaction(spreadsheetID string, sheetName s
 	return nil
 }
 
+// DeleteTransaction removes an existing transaction (income or expense) by clearing
+// the cells of the matching row. Only the columns of the requested table are cleared
+// (A:G for expense, I:N for income) so that a transaction sitting on the same physical
+// row in the other table is left untouched.
+func (u *TransactionUsecase) DeleteTransaction(spreadsheetID string, sheetName string, req request.DeleteTransactionRequest) error {
+	// ID format: txn_exp_1, txn_inc_2, etc. The prefix encodes the type.
+	var idPrefix, prefixType string
+	switch {
+	case strings.HasPrefix(req.ID, "txn_exp_"):
+		idPrefix, prefixType = "txn_exp_", "expense"
+	case strings.HasPrefix(req.ID, "txn_inc_"):
+		idPrefix, prefixType = "txn_inc_", "income"
+	default:
+		return fmt.Errorf("invalid transaction ID format: %s", req.ID)
+	}
+
+	if req.Type != prefixType {
+		return fmt.Errorf("transaction type %q does not match ID %q", req.Type, req.ID)
+	}
+
+	idNum, err := strconv.Atoi(strings.TrimPrefix(req.ID, idPrefix))
+	if err != nil {
+		return fmt.Errorf("invalid transaction ID number: %s", req.ID)
+	}
+
+	// ID starts from 1; row 2 is the first data row.
+	rowNumber := idNum + 1
+
+	var rangeStr string
+	switch req.Type {
+	case "expense":
+		rangeStr = fmt.Sprintf("%s!A%d:G%d", sheetName, rowNumber, rowNumber)
+	case "income":
+		rangeStr = fmt.Sprintf("%s!I%d:N%d", sheetName, rowNumber, rowNumber)
+	default:
+		return fmt.Errorf("invalid transaction type: %s (must be 'income' or 'expense')", req.Type)
+	}
+
+	if err := u.sheetRepo.ClearRange(spreadsheetID, rangeStr); err != nil {
+		return fmt.Errorf("failed to delete transaction: %w", err)
+	}
+
+	return nil
+}
+
 // getIndonesianMonthName returns Indonesian month name for a given month number (1-12)
 func getIndonesianMonthName(month int) string {
 	months := []string{

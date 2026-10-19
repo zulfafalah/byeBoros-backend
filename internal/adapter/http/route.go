@@ -35,6 +35,7 @@ func SetupRoutes(e *echo.Echo, authCtrl *controller.AuthController, transactionC
 	api.POST("/transaction/expense", transactionCtrl.AddExpenseTransaction)
 	api.GET("/transaction", transactionCtrl.ListTransaction)
 	api.PUT("/transaction", transactionCtrl.UpdateTransaction)
+	api.DELETE("/transaction", transactionCtrl.DeleteTransaction)
 
 	// Category routes
 	api.GET("/category", categoryCtrl.ListCategory)
